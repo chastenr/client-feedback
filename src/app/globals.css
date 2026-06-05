@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.task-pin {
+  left: var(--pin-left);
+  top: var(--pin-top);
+}
