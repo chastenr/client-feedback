@@ -1342,6 +1342,24 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                   </dl>
                 </div>
 
+                <div>
+                  <div className="mb-2 flex items-center justify-between gap-3">
+                    <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Smart summary</p>
+                    <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-bold text-sky-700">
+                      {drawerSummaryAi ? 'AI' : 'Local'}
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-stone-100 bg-stone-50 px-4 py-3">
+                    {drawerSummaryLoading ? (
+                      <p className="text-sm text-stone-400">Summarizing this feedback...</p>
+                    ) : (
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-800">
+                        {drawerSummary || 'No summary available yet.'}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
                 {/* Attachment — shown below feedback as a downloadable file */}
                 {drawerTask.attachment_url && (
                   <div>

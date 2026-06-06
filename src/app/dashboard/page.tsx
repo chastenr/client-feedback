@@ -278,10 +278,7 @@ export default function DashboardPage() {
                         {safeHost(project.website_url)}
                       </a>
                     </div>
-                    <div className="flex flex-shrink-0 items-start gap-2">
-                      <div className="hidden h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-lg font-black text-sky-700 sm:flex">
-                        {(project.name || safeHost(project.website_url)).slice(0, 1).toUpperCase()}
-                      </div>
+                    <div className="flex flex-shrink-0 items-start">
                       <button
                         type="button"
                         onClick={() => {
