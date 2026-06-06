@@ -98,6 +98,33 @@
     '.submit:hover{background:#6d28d9}',
     '.submit:disabled{opacity:.5;cursor:not-allowed}',
     '@media(max-width:520px){.tab{top:auto;right:14px;bottom:14px;writing-mode:horizontal-tb;transform:none;border-radius:999px;padding:12px 16px}.bar{width:calc(100vw - 28px);justify-content:center}.modal{left:16px;right:16px;bottom:16px;width:auto}.row{grid-template-columns:1fr}}',
+    // Slide-out comment panel
+    '.panel-backdrop{position:fixed;inset:0;z-index:2147483645;background:rgba(28,25,23,.18)}',
+    '.panel{position:fixed;right:0;top:0;bottom:0;z-index:2147483646;width:min(380px,100vw);background:#fff;border-left:1px solid #e7e5e4;box-shadow:-24px 0 60px rgba(28,25,23,.12);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1)}',
+    '.panel.panel-open{transform:translateX(0)}',
+    '.panel-header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid #f5f5f4;flex-shrink:0}',
+    '.panel-title{display:flex;align-items:center;gap:10px}',
+    '.panel-num{width:26px;height:26px;border-radius:999px;background:#7c3aed;color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0}',
+    '.panel-heading{margin:0;font-size:14px;font-weight:800;color:#1c1917}',
+    '.panel-close{border:0;background:transparent;color:#a8a29e;font-size:20px;line-height:1;cursor:pointer;padding:4px 6px;border-radius:6px;transition:background .15s}',
+    '.panel-close:hover{background:#f5f5f4;color:#1c1917}',
+    '.panel-body{flex:1;overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:14px}',
+    '.panel-feedback{background:#fafaf9;border:1.5px solid #e7e5e4;border-radius:10px;padding:12px}',
+    '.panel-feedback-text{font-size:13px;line-height:1.6;color:#1c1917;margin:0}',
+    '.panel-feedback-meta{margin-top:8px;font-size:11px;color:#a8a29e}',
+    '.panel-section-label{font-size:11px;font-weight:700;color:#78716c;letter-spacing:.03em;text-transform:uppercase}',
+    '.panel-thread{display:flex;flex-direction:column;gap:8px}',
+    '.panel-msg{background:#f5f5f4;border-radius:10px;padding:10px 12px}',
+    '.panel-msg-text{font-size:13px;color:#1c1917;line-height:1.5;margin:0;white-space:pre-wrap}',
+    '.panel-msg-time{font-size:11px;color:#a8a29e;margin-top:4px}',
+    '.panel-empty{font-size:13px;color:#a8a29e;text-align:center;padding:8px 0}',
+    '.panel-loading{font-size:13px;color:#a8a29e;text-align:center;padding:12px 0}',
+    '.panel-footer{border-top:1px solid #f5f5f4;padding:12px 18px;flex-shrink:0;display:flex;gap:8px;align-items:center}',
+    '.panel-input{flex:1;border:1.5px solid #e7e5e4;border-radius:10px;padding:9px 11px;font-size:13px;color:#1c1917;background:#fafaf9;outline:none;transition:border-color .15s,box-shadow .15s}',
+    '.panel-input:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.12);background:#fff}',
+    '.panel-send{border:0;background:#7c3aed;color:white;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:800;cursor:pointer;white-space:nowrap;transition:background .15s;flex-shrink:0}',
+    '.panel-send:hover{background:#6d28d9}',
+    '.panel-send:disabled{opacity:.5;cursor:not-allowed}',
   ].join('');
   root.appendChild(style);
 
@@ -172,23 +199,184 @@
       };
     });
     window.addEventListener('popstate', function () { setTimeout(handlePathChange, 0); });
+    window.addEventListener('resize', repositionExistingPins);
+    window.addEventListener('scroll', repositionExistingPins, { passive: true });
     setInterval(handlePathChange, 700);
   }
 
   function renderExistingPin(task, number) {
     var pin = document.createElement('div');
     pin.className = 'epin';
-    var absX = Number(task.x) + Number(task.scroll_x || 0);
-    var absY = Number(task.y) + Number(task.scroll_y || 0);
-    pin.style.left = absX + 'px';
-    pin.style.top = absY + 'px';
+    pin.setAttribute('data-task', JSON.stringify(task));
+    var point = taskDocumentPoint(task);
+    pin.style.left = point.x + 'px';
+    pin.style.top = point.y + 'px';
 
     var comment = String(task.comment || '').trim();
     var reporter = task.reporter_name ? task.reporter_name : 'Anonymous';
     var tooltipText = '#' + number + ' ' + reporter + '\n' + (comment.length > 120 ? comment.slice(0, 120) + '…' : comment);
 
     pin.innerHTML = '<div class="epin-dot">' + number + '</div><div class="epin-tooltip">' + escapeHtml(tooltipText) + '</div>';
+    pin.addEventListener('click', function (e) {
+      e.stopPropagation();
+      openPanel(task, number);
+    });
     root.appendChild(pin);
+  }
+
+  // ─── Comment panel ────────────────────────────────────────────────────────
+  function openPanel(task, pinNumber) {
+    removeByClass('panel-backdrop');
+    removeByClass('panel');
+
+    var backdrop = document.createElement('div');
+    backdrop.className = 'panel-backdrop';
+    backdrop.addEventListener('click', closePanel);
+
+    var panel = document.createElement('div');
+    panel.className = 'panel';
+
+    var comment = String(task.comment || task.description || '').trim();
+    var reporter = task.reporter_name ? task.reporter_name : 'Anonymous';
+    var date = task.created_at ? new Date(task.created_at).toLocaleString() : '';
+
+    panel.innerHTML = [
+      '<div class="panel-header">',
+      '<div class="panel-title"><div class="panel-num">' + pinNumber + '</div><h2 class="panel-heading">Feedback #' + pinNumber + '</h2></div>',
+      '<button class="panel-close" type="button" aria-label="Close">&times;</button>',
+      '</div>',
+      '<div class="panel-body">',
+      '<div class="panel-feedback">',
+      '<p class="panel-feedback-text">' + escapeHtml(comment || 'No comment provided.') + '</p>',
+      '<p class="panel-feedback-meta">' + escapeHtml(reporter) + (date ? ' &middot; ' + escapeHtml(date) : '') + '</p>',
+      '</div>',
+      '<div class="panel-section-label">Discussion</div>',
+      '<div class="panel-thread"><div class="panel-loading">Loading comments…</div></div>',
+      '</div>',
+      '<div class="panel-footer">',
+      '<input class="panel-input" type="text" placeholder="Add a comment…" maxlength="2000">',
+      '<button class="panel-send" type="button">Send</button>',
+      '</div>',
+    ].join('');
+
+    panel.querySelector('.panel-close').addEventListener('click', closePanel);
+
+    var threadEl = panel.querySelector('.panel-thread');
+    var inputEl = panel.querySelector('.panel-input');
+    var sendBtn = panel.querySelector('.panel-send');
+
+    if (task.id) {
+      fetchPanelComments(task.id, threadEl);
+      sendBtn.addEventListener('click', function () {
+        var msg = inputEl.value.trim();
+        if (!msg) return;
+        sendBtn.disabled = true;
+        fetch(appOrigin + '/api/public/task-comments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task_id: task.id, message: msg }),
+          mode: 'cors',
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.comment) {
+              appendPanelComment(threadEl, data.comment);
+              inputEl.value = '';
+            }
+            sendBtn.disabled = false;
+          })
+          .catch(function () { sendBtn.disabled = false; });
+      });
+      inputEl.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); }
+      });
+    } else {
+      threadEl.innerHTML = '<div class="panel-empty">Comments not available for unsaved pins.</div>';
+      sendBtn.disabled = true;
+    }
+
+    root.appendChild(backdrop);
+    root.appendChild(panel);
+    requestAnimationFrame(function () { panel.classList.add('panel-open'); });
+  }
+
+  function closePanel() {
+    var panel = root.querySelector('.panel');
+    if (panel) {
+      panel.classList.remove('panel-open');
+      setTimeout(function () {
+        removeByClass('panel');
+        removeByClass('panel-backdrop');
+      }, 250);
+    } else {
+      removeByClass('panel-backdrop');
+    }
+  }
+
+  function fetchPanelComments(taskId, threadEl) {
+    fetch(appOrigin + '/api/public/task-comments?task_id=' + encodeURIComponent(taskId), { mode: 'cors' })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (data) {
+        if (!data) { threadEl.innerHTML = '<div class="panel-empty">Could not load comments.</div>'; return; }
+        var comments = data.comments || [];
+        if (comments.length === 0) {
+          threadEl.innerHTML = '<div class="panel-empty">No comments yet. Be the first!</div>';
+        } else {
+          threadEl.innerHTML = '';
+          comments.forEach(function (c) { appendPanelComment(threadEl, c); });
+        }
+      })
+      .catch(function () { threadEl.innerHTML = '<div class="panel-empty">Could not load comments.</div>'; });
+  }
+
+  function appendPanelComment(threadEl, c) {
+    var el = document.createElement('div');
+    el.className = 'panel-msg';
+    var time = c.created_at ? new Date(c.created_at).toLocaleString() : '';
+    el.innerHTML = '<p class="panel-msg-text">' + escapeHtml(c.message) + '</p><p class="panel-msg-time">' + escapeHtml(time) + '</p>';
+    threadEl.appendChild(el);
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function findTaskElement(task) {
+    if (!task.selector) return null;
+    try {
+      return document.querySelector(task.selector);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function taskDocumentPoint(task) {
+    var fallback = {
+      x: Number(task.x) + Number(task.scroll_x || 0),
+      y: Number(task.y) + Number(task.scroll_y || 0),
+    };
+    var target = findTaskElement(task);
+    if (!target || !target.getBoundingClientRect) return fallback;
+
+    var rect = target.getBoundingClientRect();
+    var offsetX = task.element_offset_x !== null && task.element_offset_x !== undefined ? Number(task.element_offset_x) : rect.width / 2;
+    var offsetY = task.element_offset_y !== null && task.element_offset_y !== undefined ? Number(task.element_offset_y) : rect.height / 2;
+    if (!Number.isFinite(offsetX) || !Number.isFinite(offsetY)) return fallback;
+    if (Number(task.element_width) > 0) offsetX = (offsetX / Number(task.element_width)) * rect.width;
+    if (Number(task.element_height) > 0) offsetY = (offsetY / Number(task.element_height)) * rect.height;
+
+    return {
+      x: rect.left + window.scrollX + Math.min(rect.width, Math.max(0, offsetX)),
+      y: rect.top + window.scrollY + Math.min(rect.height, Math.max(0, offsetY)),
+    };
+  }
+
+  function repositionExistingPins() {
+    Array.prototype.slice.call(root.querySelectorAll('.epin')).forEach(function (pin) {
+      try {
+        var task = JSON.parse(pin.getAttribute('data-task') || '{}');
+        var point = taskDocumentPoint(task);
+        pin.style.left = point.x + 'px';
+        pin.style.top = point.y + 'px';
+      } catch (_) {}
+    });
   }
 
   // ─── Install-check ping ────────────────────────────────────────────────────
@@ -277,6 +465,7 @@
     event.stopPropagation();
     event.stopImmediatePropagation();
     var target = event.target && event.target.nodeType === 1 ? event.target : state.hoverEl;
+    var rect = target && target.getBoundingClientRect ? target.getBoundingClientRect() : null;
     state.selected = {
       x: event.clientX,
       y: event.clientY,
@@ -284,6 +473,10 @@
       scrollY: window.scrollY || window.pageYOffset || 0,
       selector: target ? getCssSelector(target) : null,
       elementText: target ? (target.innerText || '').slice(0, 200).trim() : null,
+      elementOffsetX: rect ? event.clientX - rect.left : null,
+      elementOffsetY: rect ? event.clientY - rect.top : null,
+      elementWidth: rect ? rect.width : null,
+      elementHeight: rect ? rect.height : null,
     };
     exitSelectMode();
     renderNewPin(state.selected);
@@ -415,6 +608,10 @@
       element_text: state.selected.elementText,
       x: state.selected.x,
       y: state.selected.y,
+      element_offset_x: state.selected.elementOffsetX,
+      element_offset_y: state.selected.elementOffsetY,
+      element_width: state.selected.elementWidth,
+      element_height: state.selected.elementHeight,
       scroll_x: state.selected.scrollX,
       scroll_y: state.selected.scrollY,
       viewport_width: window.innerWidth,
@@ -440,6 +637,11 @@
       renderExistingPin({
         x: state.selected.x,
         y: state.selected.y,
+        selector: state.selected.selector,
+        element_offset_x: state.selected.elementOffsetX,
+        element_offset_y: state.selected.elementOffsetY,
+        element_width: state.selected.elementWidth,
+        element_height: state.selected.elementHeight,
         scroll_x: state.selected.scrollX,
         scroll_y: state.selected.scrollY,
         comment: String(formData.get('comment') || '').trim(),
