@@ -11,6 +11,7 @@ import {
   type TaskStatus,
 } from '@/lib/api/feedback-types';
 import { dashboardFetch } from '@/lib/api/client';
+import ThemeToggle from '@/components/ThemeToggle';
 
 type Tab = 'tasks' | 'install' | 'settings';
 
@@ -407,6 +408,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
             {project?.website_url && <p className="text-xs text-stone-400">{project.website_url}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <ThemeToggle />
             {project && (
               <button
                 type="button"

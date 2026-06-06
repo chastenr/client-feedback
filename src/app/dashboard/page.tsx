@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Project } from '@/lib/api/feedback-types';
 import { dashboardFetch } from '@/lib/api/client';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -114,6 +115,7 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             {adminEmail && <span className="hidden text-xs font-semibold text-stone-400 sm:inline">{adminEmail}</span>}
+            <ThemeToggle />
             <button
               type="button"
               onClick={() => setShowForm(true)}
