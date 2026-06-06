@@ -25,7 +25,7 @@ function ClientLoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createBrowserSupabaseClient(), []);
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -48,6 +48,23 @@ function ClientLoginContent() {
     }
 
     setLoading(true);
+    const loginName = identifier.trim().toLowerCase();
+    let email = loginName;
+    if (!loginName.includes('@')) {
+      const response = await fetch('/api/client/resolve-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ identifier: loginName }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setLoading(false);
+        setError(data.error ?? 'Invalid username or password.');
+        return;
+      }
+      email = data.email;
+    }
+
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
 
@@ -76,13 +93,13 @@ function ClientLoginContent() {
 
           <form onSubmit={submit} className="mt-6 space-y-4">
             <label className="block text-sm font-semibold text-stone-700">
-              Email
+              Username or email
               <input
-                value={email}
-                onChange={event => setEmail(event.target.value)}
-                type="email"
+                value={identifier}
+                onChange={event => setIdentifier(event.target.value)}
+                type="text"
                 required
-                autoComplete="email"
+                autoComplete="username"
                 className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
               />
             </label>

@@ -16,6 +16,10 @@ function isMissingProfileRole(message: string) {
   return /role.*profiles|profiles.*role|schema cache/i.test(message);
 }
 
+function isMissingProfileUsername(message: string) {
+  return /username.*profiles|profiles.*username|schema cache/i.test(message);
+}
+
 async function findAuthUserByEmail(client: SupabaseClient, email: string) {
   let page = 1;
   const perPage = 100;
@@ -53,8 +57,30 @@ export async function POST(
   if (!project) return jsonError('Project not found.', 404);
 
   const email = parsed.data.email.toLowerCase();
+  const username = parsed.data.username?.trim().toLowerCase() || null;
   const fullName = parsed.data.fullName || null;
   let userId: string | null = null;
+
+  if (username) {
+    const { data: existingUsername, error: usernameError } = await result.client
+      .from('profiles')
+      .select('id')
+      .eq('username', username)
+      .maybeSingle();
+    if (usernameError && !isMissingProfileUsername(usernameError.message)) {
+      return clientAccessError(usernameError.message);
+    }
+    if (existingUsername?.id) {
+      const { data: profileForEmail } = await result.client
+        .from('profiles')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+      if (!profileForEmail?.id || profileForEmail.id !== existingUsername.id) {
+        return jsonError('That username is already used by another client.', 409);
+      }
+    }
+  }
 
   const { data: existingProfile } = await result.client
     .from('profiles')
@@ -102,11 +128,14 @@ export async function POST(
     id: userId,
     email,
     full_name: fullName,
+    username,
     role: 'viewer',
   };
   const { error: profileError } = await result.client.from('profiles').upsert(profilePayload);
   if (profileError) {
-    if (!isMissingProfileRole(profileError.message)) return clientAccessError(profileError.message);
+    if (!isMissingProfileRole(profileError.message) && !isMissingProfileUsername(profileError.message)) {
+      return clientAccessError(profileError.message);
+    }
 
     const { error: fallbackProfileError } = await result.client.from('profiles').upsert({
       id: userId,
@@ -130,6 +159,7 @@ export async function POST(
     client: {
       id: userId,
       email,
+      username,
       full_name: fullName,
       role: 'viewer',
       project_id: params.id,

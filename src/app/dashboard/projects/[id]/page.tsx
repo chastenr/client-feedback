@@ -24,6 +24,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [showShare, setShowShare] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
   const [clientEmail, setClientEmail] = useState('');
+  const [clientUsername, setClientUsername] = useState('');
   const [clientPassword, setClientPassword] = useState('');
   const [clientFullName, setClientFullName] = useState('');
   const [clientAccessMessage, setClientAccessMessage] = useState('');
@@ -152,6 +153,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: clientEmail,
+        username: clientUsername || null,
         password: clientPassword,
         fullName: clientFullName || null,
       }),
@@ -164,7 +166,8 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
       return;
     }
 
-    setClientAccessMessage(`Client account ready for ${data.client?.email ?? clientEmail}. Send them the client login and password.`);
+    const loginName = data.client?.username || data.client?.email || clientEmail;
+    setClientAccessMessage(`Client account ready for ${loginName}. Send them the client login and password.`);
     setClientPassword('');
   }
 
@@ -504,6 +507,21 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                     className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
                     placeholder="client@example.com"
                   />
+                </label>
+
+                <label className="block text-sm font-semibold text-stone-700">
+                  Username
+                  <input
+                    value={clientUsername}
+                    onChange={event => setClientUsername(event.target.value.toLowerCase())}
+                    className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                    placeholder="short-name"
+                    pattern="[a-z0-9._-]{3,40}"
+                    title="Use 3-40 lowercase letters, numbers, dots, dashes, or underscores."
+                  />
+                  <span className="mt-1 block text-xs font-normal text-stone-400">
+                    Optional. Clients can log in with this instead of typing their email.
+                  </span>
                 </label>
 
                 <label className="block text-sm font-semibold text-stone-700">
