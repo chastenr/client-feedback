@@ -391,13 +391,16 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <h1 className="text-xl font-black text-stone-900">{project?.name ?? 'Project'}</h1>
               {project && (
-                <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+                <span
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full border text-sm font-black shadow-sm ${
                   isInstalled
-                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                    : 'bg-amber-50 text-amber-700 border border-amber-200'
-                }`}>
-                  <span className={`h-1.5 w-1.5 rounded-full ${isInstalled ? 'bg-emerald-500' : 'bg-amber-400'}`} />
-                  {isInstalled ? 'Widget installed' : 'Not installed yet'}
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                    : 'border-amber-200 bg-amber-50 text-amber-700'
+                }`}
+                  title={isInstalled ? 'Widget installed' : 'Widget not installed yet'}
+                  aria-label={isInstalled ? 'Widget installed' : 'Widget not installed yet'}
+                >
+                  {isInstalled ? '✓' : '!'}
                 </span>
               )}
             </div>
