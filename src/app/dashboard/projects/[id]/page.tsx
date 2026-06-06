@@ -27,6 +27,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [clientPassword, setClientPassword] = useState('');
   const [clientFullName, setClientFullName] = useState('');
   const [clientAccessMessage, setClientAccessMessage] = useState('');
+  const [clientAccessError, setClientAccessError] = useState('');
   const [clientAccessSaving, setClientAccessSaving] = useState(false);
 
   // Drawer state
@@ -144,7 +145,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     if (!project) return;
     setClientAccessSaving(true);
     setClientAccessMessage('');
-    setError('');
+    setClientAccessError('');
 
     const response = await dashboardFetch(`/api/projects/${project.id}/client-access`, {
       method: 'POST',
@@ -159,7 +160,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     setClientAccessSaving(false);
 
     if (!response.ok) {
-      setError(data.error ?? 'Unable to create client access.');
+      setClientAccessError(data.error ?? 'Unable to create client access.');
       return;
     }
 
@@ -520,6 +521,10 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
 
                 {clientAccessMessage && (
                   <p className="rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">{clientAccessMessage}</p>
+                )}
+
+                {clientAccessError && (
+                  <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{clientAccessError}</p>
                 )}
 
                 <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
