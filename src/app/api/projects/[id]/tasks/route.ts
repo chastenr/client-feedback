@@ -12,7 +12,7 @@ export async function GET(
     return NextResponse.json({ tasks: await listLocalTasks(params.id), localMode: true });
   }
 
-  const result = getAdminClient(request);
+  const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
 
   const { data, error } = await result.client

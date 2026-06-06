@@ -18,18 +18,14 @@ export async function POST(
     return NextResponse.json({ comment, localMode: true }, { status: 201 });
   }
 
-  const result = getAdminClient(request);
+  const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
-
-  const { data: userData } = result.mode === 'user'
-    ? await result.client.auth.getUser()
-    : { data: { user: null } };
 
   const { data, error } = await result.client
     .from('task_comments')
     .insert({
       task_id: params.id,
-      user_id: userData.user?.id ?? null,
+      user_id: result.user?.id ?? null,
       message: parsed.data.message,
     })
     .select('*')

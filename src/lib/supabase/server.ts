@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient, type User } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 type AdminMode = 'user' | 'service-dev';
@@ -57,11 +57,20 @@ export function getBearerToken(request: Request) {
   return header.slice('Bearer '.length).trim();
 }
 
-export function getAdminClient(request: Request): { client: SupabaseClient; mode: AdminMode } | NextResponse {
+export async function getAdminClient(request: Request): Promise<{ client: SupabaseClient; mode: AdminMode; user: User | null } | NextResponse> {
   const token = getBearerToken(request);
-  if (token) return { client: createUserClient(token), mode: 'user' };
-  // No token — use service role. Dashboard access is controlled at the deployment level.
-  return { client: createServiceClient(), mode: 'service-dev' };
+  if (token) {
+    const userClient = createUserClient(token);
+    const { data, error } = await userClient.auth.getUser();
+    if (error || !data.user) return jsonError('Admin login required.', 401);
+    return { client: createServiceClient(), mode: 'user', user: data.user };
+  }
+
+  if (process.env.ADMIN_AUTH_DISABLED === 'true') {
+    return { client: createServiceClient(), mode: 'service-dev', user: null };
+  }
+
+  return jsonError('Admin login required.', 401);
 }
 
 export function jsonError(message: string, status = 400) {

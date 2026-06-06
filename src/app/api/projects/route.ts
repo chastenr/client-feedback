@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient, getAdminClient, jsonError } from '@/lib/supabase/server';
+import { getAdminClient, jsonError } from '@/lib/supabase/server';
 import { createProjectSchema } from '@/lib/api/validation';
 import { createLocalProject, isLocalMode, listLocalProjects } from '@/lib/local-store';
 
@@ -10,7 +10,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ projects: await listLocalProjects(), localMode: true });
   }
 
-  const result = getAdminClient(request);
+  const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
 
   const { data, error } = await result.client
@@ -33,20 +33,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ project, localMode: true }, { status: 201 });
   }
 
-  const result = getAdminClient(request);
+  const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
 
-  const { data: userData } = result.mode === 'user'
-    ? await result.client.auth.getUser()
-    : { data: { user: null } };
+  const user = result.user;
+  const service = result.client;
 
-  const service = result.mode === 'user' ? createServiceClient() : result.client;
-
-  if (userData.user?.id) {
+  if (user?.id) {
     await service.from('profiles').upsert({
-      id: userData.user.id,
-      email: userData.user.email ?? '',
-      full_name: userData.user.user_metadata?.full_name ?? userData.user.user_metadata?.name ?? null,
+      id: user.id,
+      email: user.email ?? '',
+      full_name: user.user_metadata?.full_name ?? user.user_metadata?.name ?? null,
     });
   }
 
@@ -57,17 +54,17 @@ export async function POST(request: Request) {
       client_name: parsed.data.clientName || null,
       website_url: parsed.data.websiteUrl,
       allowed_origin: parsed.data.allowedOrigin || null,
-      created_by: userData.user?.id ?? null,
+      created_by: user?.id ?? null,
     })
     .select('id,name,client_name,website_url,allowed_origin,widget_last_seen_at,public_token,share_token,created_by,created_at')
     .single();
 
   if (error || !project) return jsonError(error?.message ?? 'Unable to create project.', 500);
 
-  if (userData.user?.id) {
+  if (user?.id) {
     await service.from('project_members').insert({
       project_id: project.id,
-      user_id: userData.user.id,
+      user_id: user.id,
       role: 'owner',
     });
   }

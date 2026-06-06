@@ -15,7 +15,7 @@ export async function GET(
     return NextResponse.json({ task, comments: await getLocalTaskComments(params.id), localMode: true });
   }
 
-  const result = getAdminClient(request);
+  const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
 
   const { data: task, error } = await result.client
@@ -56,7 +56,7 @@ export async function PATCH(
     return NextResponse.json({ task, localMode: true });
   }
 
-  const result = getAdminClient(request);
+  const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
 
   const updates: Record<string, unknown> = {};

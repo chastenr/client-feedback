@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import type { Project } from '@/lib/api/feedback-types';
 import { dashboardFetch } from '@/lib/api/client';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -16,6 +17,19 @@ export default function DashboardPage() {
   const [creating, setCreating] = useState(false);
   const [localMode, setLocalMode] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [adminEmail, setAdminEmail] = useState('');
+
+  useEffect(() => {
+    const supabase = createBrowserSupabaseClient();
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => {
+      if (!data.session) {
+        window.location.href = '/login?next=/dashboard';
+        return;
+      }
+      setAdminEmail(data.session.user.email ?? '');
+    });
+  }, []);
 
   async function loadProjects() {
     setLoading(true);
@@ -33,6 +47,12 @@ export default function DashboardPage() {
   useEffect(() => {
     loadProjects();
   }, []);
+
+  async function signOut() {
+    const supabase = createBrowserSupabaseClient();
+    await supabase?.auth.signOut();
+    window.location.href = '/login';
+  }
 
   async function createProject(event: React.FormEvent) {
     event.preventDefault();
@@ -70,6 +90,7 @@ export default function DashboardPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {adminEmail && <span className="hidden text-xs font-semibold text-stone-400 sm:inline">{adminEmail}</span>}
             <button
               type="button"
               onClick={() => setShowForm(true)}
@@ -77,9 +98,13 @@ export default function DashboardPage() {
             >
               + New project
             </button>
-            <Link href="/login" className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-600 hover:bg-stone-50">
-              Login
-            </Link>
+            <button
+              type="button"
+              onClick={signOut}
+              className="rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-semibold text-stone-600 hover:bg-stone-50"
+            >
+              Log out
+            </button>
           </div>
         </div>
       </header>

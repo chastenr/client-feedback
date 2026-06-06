@@ -19,16 +19,30 @@ export default function HomePage() {
             They click the Feedback button, pick any element, and type a comment — it shows up on your dashboard as a task.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/dashboard" className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-violet-700">
-              Open dashboard
-            </Link>
-            <Link href="/login" className="rounded-xl border border-stone-200 bg-white px-5 py-2.5 text-sm font-bold text-stone-700 shadow-sm hover:bg-stone-100">
-              Log in
+            <Link href="/login" className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-violet-700">
+              Admin login
             </Link>
           </div>
         </div>
 
-        <div className="mt-14 grid gap-4 md:grid-cols-4">
+        <div className="mt-14 grid gap-4 md:grid-cols-2">
+          <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-violet-600 text-sm font-black text-white shadow-sm">
+              A
+            </div>
+            <h2 className="font-bold text-stone-900">Admin view</h2>
+            <p className="mt-1 text-sm leading-6 text-stone-500">Log in to create projects, install snippets, and manage feedback tasks.</p>
+          </div>
+          <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+            <div className="mb-3 flex h-8 w-8 items-center justify-center rounded-xl bg-stone-900 text-sm font-black text-white shadow-sm">
+              C
+            </div>
+            <h2 className="font-bold text-stone-900">Client view</h2>
+            <p className="mt-1 text-sm leading-6 text-stone-500">Clients use the private review link you send them, like /review/[token]. No admin login needed.</p>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-4 md:grid-cols-4">
           {([
             ['1', 'Create project', 'Add your client\'s website URL in the dashboard.'],
             ['2', 'Install snippet', 'Paste one <script> tag on the target website.'],
