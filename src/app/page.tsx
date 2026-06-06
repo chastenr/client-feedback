@@ -15,7 +15,7 @@ export default function HomePage() {
             <span className="text-violet-600">Tasks appear instantly.</span>
           </h1>
           <p className="mt-5 text-lg leading-8 text-stone-500">
-            Install one script on your website. Share a review link with your client.
+            Install one script on your website. Share a client link with your client.
             They click the Feedback button, pick any element, and type a comment — it shows up on your dashboard as a task.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
@@ -38,7 +38,7 @@ export default function HomePage() {
               C
             </div>
             <h2 className="font-bold text-stone-900">Client view</h2>
-            <p className="mt-1 text-sm leading-6 text-stone-500">Clients use the private review link you send them, like /review/[token]. No admin login needed.</p>
+            <p className="mt-1 text-sm leading-6 text-stone-500">Clients use the private client link you send them, like /client/[token]. No admin login needed.</p>
           </div>
         </div>
 
@@ -46,7 +46,7 @@ export default function HomePage() {
           {([
             ['1', 'Create project', 'Add your client\'s website URL in the dashboard.'],
             ['2', 'Install snippet', 'Paste one <script> tag on the target website.'],
-            ['3', 'Share review link', 'Send the client a simple /review/… link.'],
+            ['3', 'Share client link', 'Send the client a simple /client/… link.'],
             ['4', 'Review tasks', 'Feedback lands in your Kanban board automatically.'],
           ] as const).map(([step, title, text]) => (
             <div key={step} className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">

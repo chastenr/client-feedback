@@ -156,7 +156,7 @@ function LoginContent() {
         <div className="mt-4 rounded-2xl border border-stone-200 bg-white p-4 text-sm text-stone-500 shadow-sm">
           <p className="font-bold text-stone-800">Client view</p>
           <p className="mt-1 leading-6">
-            Clients do not log in here. Send them their project review link: <span className="font-mono text-xs">/review/[token]</span>.
+            Clients do not log in here. Send them their client link: <span className="font-mono text-xs">/client/[token]</span>.
           </p>
         </div>
       </div>

@@ -113,7 +113,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   function getReviewLink() {
     if (!project || typeof window === 'undefined') return '';
     const token = project.share_token ?? project.public_token;
-    return `${window.location.origin}/review/${token}`;
+    return `${window.location.origin}/client/${token}`;
   }
 
   function getSnippet() {
@@ -199,7 +199,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                 onClick={() => setShowShare(true)}
                 className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-violet-700"
               >
-                Share review link
+                Share client link
               </button>
             )}
             <button
@@ -239,7 +239,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
               <div className="mb-5 rounded-2xl border border-violet-100 bg-violet-50 px-5 py-4">
                 <p className="font-bold text-violet-900">No feedback yet</p>
                 <p className="mt-1 text-sm text-violet-700">
-                  Install the snippet on the website, then share the review link with your client.
+                  Install the snippet on the website, then share the client link with your client.
                 </p>
                 <div className="mt-3 flex gap-2">
                   <button
@@ -254,7 +254,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                     onClick={() => setShowShare(true)}
                     className="rounded-xl border border-violet-200 bg-white px-4 py-2 text-sm font-bold text-violet-700 hover:bg-violet-50"
                   >
-                    Share review link
+                    Share client link
                   </button>
                 </div>
               </div>
@@ -390,13 +390,13 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
               </div>
 
               <div className="mt-6 rounded-xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm text-violet-800">
-                After installing, share the review link — the client just opens the site and clicks Feedback.
+                After installing, share the client link. The client opens the site and clicks Feedback.
                 <button
                   type="button"
                   onClick={() => setShowShare(true)}
                   className="mt-2 block rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-700"
                 >
-                  Share review link
+                  Share client link
                 </button>
               </div>
             </div>
@@ -654,7 +654,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={event => event.stopPropagation()}>
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-black text-stone-900">Share review link</h2>
+                <h2 className="text-lg font-black text-stone-900">Share client link</h2>
                 <p className="mt-1 text-sm text-stone-500">Send this to your client. They just open the website and click Feedback — no setup needed on their end.</p>
               </div>
               <button
@@ -669,7 +669,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
             <div className="mt-5 rounded-xl border border-stone-200 bg-stone-50 p-4 text-sm text-stone-600">
               <p className="font-bold text-stone-800">What your client sees:</p>
               <ol className="mt-2 space-y-1 pl-4 text-sm">
-                <li>1. Open the website review link.</li>
+                <li>1. Open the client review link.</li>
                 <li>2. Click the <strong>Feedback</strong> button.</li>
                 <li>3. Click the page area to comment on.</li>
                 <li>4. Type a comment and submit.</li>
@@ -677,7 +677,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
             </div>
 
             <div className="mt-4">
-              <p className="mb-1 text-xs font-bold uppercase tracking-widest text-stone-400">Review link</p>
+              <p className="mb-1 text-xs font-bold uppercase tracking-widest text-stone-400">Client link</p>
               <div className="break-all rounded-xl bg-stone-950 px-4 py-3 text-sm text-white">{getReviewLink()}</div>
             </div>
 
