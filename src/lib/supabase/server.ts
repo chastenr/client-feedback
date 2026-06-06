@@ -92,6 +92,21 @@ export async function getAuthenticatedClient(request: Request): Promise<{ client
   return { client: createServiceClient(), mode: 'user', user: data.user };
 }
 
+export async function requireProjectAccess(request: Request, projectId: string) {
+  const result = await getAuthenticatedClient(request);
+  if (result instanceof NextResponse) return result;
+
+  const { data } = await result.client
+    .from('project_members')
+    .select('id')
+    .eq('project_id', projectId)
+    .eq('user_id', result.user.id)
+    .maybeSingle();
+
+  if (!data) return jsonError('You do not have access to this project.', 403);
+  return result;
+}
+
 export function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }

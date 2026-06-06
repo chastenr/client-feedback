@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient, requireProjectAccess } from '@/lib/supabase/server';
 import { isLocalMode } from '@/lib/local-store';
 
 export const runtime = 'nodejs';
@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
@@ -58,6 +58,11 @@ export async function POST(request: Request) {
 
   if (!project) {
     return NextResponse.json({ error: 'Project not found.' }, { status: 404, headers: cors });
+  }
+
+  const access = await requireProjectAccess(request, project.id);
+  if (access instanceof NextResponse) {
+    return NextResponse.json(await access.json(), { status: access.status, headers: cors });
   }
 
   const ext = extFromType(file.type);

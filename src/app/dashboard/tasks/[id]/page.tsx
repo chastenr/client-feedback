@@ -150,6 +150,28 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
             )}
           </div>
 
+          {task.attachment_url && (
+            <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-stone-400">Attachment</h2>
+              {/\.(mp4|webm|mov)(\?|$)/i.test(task.attachment_url) ? (
+                <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-950">
+                  <video src={task.attachment_url} controls className="block w-full max-h-[480px]" preload="metadata" />
+                </div>
+              ) : (
+                <div className="flex items-center gap-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={task.attachment_url} alt="Attached file" className="h-16 w-24 flex-shrink-0 rounded-xl border border-stone-200 object-cover" />
+                  <div>
+                    <p className="text-sm font-semibold text-stone-700">Attached image</p>
+                    <a href={task.attachment_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-sm font-bold text-violet-600 hover:text-violet-800">
+                      View / Download ↗
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
             <h2 className="mb-3 text-xs font-bold uppercase tracking-widest text-stone-400">Feedback comment</h2>
             <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-800">{task.comment || task.description || 'No comment provided.'}</p>

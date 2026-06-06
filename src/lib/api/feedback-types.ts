@@ -54,6 +54,7 @@ export interface FeedbackTask {
   viewport_width: number;
   viewport_height: number;
   screenshot_url: string | null;
+  attachment_url?: string | null;
   browser: string | null;
   os: string | null;
   device: string | null;

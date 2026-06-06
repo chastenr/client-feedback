@@ -184,6 +184,7 @@
     try {
       fetch(appOrigin + '/api/public/project-tasks?project_id=' + encodeURIComponent(projectId) + '&page_path=' + encodeURIComponent(requestedPath), {
         mode: 'cors',
+        headers: authHeaders(),
       })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
@@ -316,7 +317,7 @@
         sendBtn.disabled = true;
         fetch(appOrigin + '/api/public/task-comments', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: authHeaders({ 'Content-Type': 'application/json' }),
           body: JSON.stringify({ task_id: task.id, message: msg, author_name: authorName }),
           mode: 'cors',
         })
@@ -357,7 +358,7 @@
   }
 
   function fetchPanelComments(taskId, threadEl) {
-    fetch(appOrigin + '/api/public/task-comments?task_id=' + encodeURIComponent(taskId), { mode: 'cors' })
+    fetch(appOrigin + '/api/public/task-comments?task_id=' + encodeURIComponent(taskId), { mode: 'cors', headers: authHeaders() })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (data) {
         if (!data) { threadEl.innerHTML = '<div class="panel-empty">Could not load comments.</div>'; return; }
@@ -726,51 +727,23 @@
     button.disabled = true;
     statusEl.className = 'status';
 
-    var screenshot = null;
-    var attachmentUrl = null;
+    // Always auto-capture the page screenshot
+    statusEl.textContent = 'Capturing screenshot…';
+    var screenshot = await captureScreenshot();
 
+    // If user attached a file, upload it separately as an attachment (never replaces the screenshot)
+    var attachmentUrl = null;
     if (state.attachedFile) {
-      var attached = state.attachedFile;
-      if (attached.type.startsWith('video/')) {
-        // Upload video first, then skip html2canvas
-        statusEl.textContent = 'Uploading video…';
-        try {
-          var fd = new FormData();
-          fd.append('project_id', projectId);
-          fd.append('file', attached);
-          var uploadRes = await fetch(appOrigin + '/api/public/upload', { method: 'POST', body: fd, mode: 'cors' });
-          var uploadBody = await uploadRes.json().catch(function () { return {}; });
-          if (uploadRes.ok && uploadBody.url) {
-            attachmentUrl = uploadBody.url;
-          } else {
-            statusEl.className = 'status error-msg';
-            statusEl.textContent = uploadBody.error || 'Video upload failed. Please try again.';
-            button.disabled = false;
-            return;
-          }
-        } catch (_) {
-          statusEl.className = 'status error-msg';
-          statusEl.textContent = 'Video upload failed. Please check your connection.';
-          button.disabled = false;
-          return;
-        }
-      } else {
-        // Image — read as data URL, use instead of auto-capture
-        statusEl.textContent = 'Processing image…';
-        try {
-          screenshot = await new Promise(function (resolve, reject) {
-            var reader = new FileReader();
-            reader.onload = function (e) { resolve(e.target.result); };
-            reader.onerror = reject;
-            reader.readAsDataURL(attached);
-          });
-        } catch (_) {
-          screenshot = null;
-        }
-      }
-    } else {
-      statusEl.textContent = 'Capturing screenshot…';
-      screenshot = await captureScreenshot();
+      statusEl.textContent = 'Uploading attachment…';
+      try {
+        var fd = new FormData();
+        fd.append('project_id', projectId);
+        fd.append('file', state.attachedFile);
+        var uploadRes = await fetch(appOrigin + '/api/public/upload', { method: 'POST', body: fd, mode: 'cors' });
+        var uploadBody = await uploadRes.json().catch(function () { return {}; });
+        if (uploadRes.ok && uploadBody.url) attachmentUrl = uploadBody.url;
+        // If upload fails, still submit — just without the attachment
+      } catch (_) {}
     }
 
     statusEl.textContent = 'Sending…';
@@ -803,7 +776,7 @@
     try {
       var response = await fetch(appOrigin + '/api/feedback', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify(payload),
         mode: 'cors',
       });

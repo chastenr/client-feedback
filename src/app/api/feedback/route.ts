@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient, jsonError } from '@/lib/supabase/server';
+import { createServiceClient, jsonError, requireProjectAccess } from '@/lib/supabase/server';
 import { widgetFeedbackSchema } from '@/lib/api/validation';
 import { createLocalTask, getLocalProjectByToken, isLocalMode } from '@/lib/local-store';
 
@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 export async function OPTIONS() {
@@ -118,6 +118,11 @@ export async function POST(request: Request) {
     );
   }
 
+  const access = await requireProjectAccess(request, project.id);
+  if (access instanceof NextResponse) {
+    return NextResponse.json(await access.json(), { status: access.status, headers: corsHeaders });
+  }
+
   const origin = request.headers.get('origin') ?? request.headers.get('referer');
   if (project.allowed_origin && origin) {
     try {
@@ -136,9 +141,10 @@ export async function POST(request: Request) {
     }
   }
 
-  // attachment_url is a pre-uploaded file URL (used for video/large files uploaded via /api/public/upload)
-  let screenshotUrl: string | null = attachment_url ?? screenshot ?? null;
-  if (!attachment_url && screenshot) {
+  // screenshot = auto-captured page screenshot (base64 data URL → upload to storage)
+  // attachment_url = user-uploaded file (already in storage, stored separately)
+  let screenshotUrl: string | null = null;
+  if (screenshot) {
     const image = dataUrlToBuffer(screenshot);
     if (image) {
       const ext = extensionFromType(image.contentType);
@@ -178,6 +184,7 @@ export async function POST(request: Request) {
       viewport_width,
       viewport_height,
       screenshot_url: screenshotUrl,
+      attachment_url: attachment_url ?? null,
       browser: null,
       os: null,
       device: null,

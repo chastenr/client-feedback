@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient, jsonError } from '@/lib/supabase/server';
+import { createServiceClient, jsonError, requireProjectAccess } from '@/lib/supabase/server';
 import { publicFeedbackSchema } from '@/lib/api/validation';
 import { createLocalTask, isLocalMode } from '@/lib/local-store';
 
@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 export async function OPTIONS() {
@@ -87,6 +87,11 @@ export async function POST(request: Request) {
 
   if (projectError || !project) {
     return NextResponse.json({ error: 'Invalid project token.' }, { status: 404, headers: corsHeaders });
+  }
+
+  const access = await requireProjectAccess(request, project.id);
+  if (access instanceof NextResponse) {
+    return NextResponse.json(await access.json(), { status: access.status, headers: corsHeaders });
   }
 
   let screenshotUrl: string | null = payload.screenshot ?? null;

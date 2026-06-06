@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient, requireProjectAccess } from '@/lib/supabase/server';
 import { getLocalProject, getLocalProjectByToken, isLocalMode, listLocalTasks } from '@/lib/local-store';
 
 export const runtime = 'nodejs';
@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 export async function OPTIONS() {
@@ -42,6 +42,11 @@ export async function GET(request: Request) {
     .single();
 
   if (!project) return NextResponse.json({ tasks: [] }, { headers: cors });
+
+  const access = await requireProjectAccess(request, project.id);
+  if (access instanceof NextResponse) {
+    return NextResponse.json(await access.json(), { status: access.status, headers: cors });
+  }
 
   const { data } = await supabase
     .from('feedback_tasks')

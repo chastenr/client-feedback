@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient } from '@/lib/supabase/server';
+import { createServiceClient, requireProjectAccess } from '@/lib/supabase/server';
 import { isLocalMode, getLocalTask, getLocalTaskComments, createLocalComment } from '@/lib/local-store';
 
 export const runtime = 'nodejs';
@@ -7,7 +7,7 @@ export const runtime = 'nodejs';
 const cors = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
 export async function OPTIONS() {
@@ -32,11 +32,16 @@ export async function GET(request: Request) {
 
   const { data: task } = await supabase
     .from('feedback_tasks')
-    .select('id,comment,description,reporter_name,reporter_email,page_url,page_path,status,created_at')
+    .select('id,project_id,comment,description,reporter_name,reporter_email,page_url,page_path,status,created_at')
     .eq('id', taskId)
     .single();
 
   if (!task) return NextResponse.json({ error: 'Task not found.' }, { status: 404, headers: cors });
+
+  const access = await requireProjectAccess(request, task.project_id);
+  if (access instanceof NextResponse) {
+    return NextResponse.json(await access.json(), { status: access.status, headers: cors });
+  }
 
   const { data: comments } = await supabase
     .from('task_comments')
@@ -67,11 +72,16 @@ export async function POST(request: Request) {
 
   const { data: task } = await supabase
     .from('feedback_tasks')
-    .select('id')
+    .select('id,project_id')
     .eq('id', taskId)
     .single();
 
   if (!task) return NextResponse.json({ error: 'Task not found.' }, { status: 404, headers: cors });
+
+  const access = await requireProjectAccess(request, task.project_id);
+  if (access instanceof NextResponse) {
+    return NextResponse.json(await access.json(), { status: access.status, headers: cors });
+  }
 
   const { data: comment, error } = await supabase
     .from('task_comments')
