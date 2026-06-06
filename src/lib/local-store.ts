@@ -72,6 +72,18 @@ export async function getLocalProject(id: string) {
   return db.projects.find(project => project.id === id) ?? null;
 }
 
+export async function deleteLocalProject(id: string) {
+  const db = await readDb();
+  const project = db.projects.find(item => item.id === id);
+  if (!project) return false;
+  const taskIds = new Set(db.tasks.filter(task => task.project_id === id).map(task => task.id));
+  db.projects = db.projects.filter(item => item.id !== id);
+  db.tasks = db.tasks.filter(task => task.project_id !== id);
+  db.comments = db.comments.filter(comment => !taskIds.has(comment.task_id));
+  await writeDb(db);
+  return true;
+}
+
 export async function getLocalProjectByToken(tokenValue: string) {
   const db = await readDb();
   return db.projects.find(project => project.public_token === tokenValue || project.share_token === tokenValue) ?? null;

@@ -20,6 +20,7 @@ export default function DashboardPage() {
   const [showForm, setShowForm] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
@@ -78,6 +79,26 @@ export default function DashboardPage() {
     setAllowedOrigin('');
     setShowForm(false);
     setProjects(prev => [data.project, ...prev]);
+  }
+
+  async function deleteProject(project: Project) {
+    const confirmed = window.confirm(`Delete "${project.name}"? This removes its tasks, comments, and members.`);
+    if (!confirmed) return;
+
+    setDeletingId(project.id);
+    setError('');
+    const response = await dashboardFetch(`/api/projects/${project.id}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json().catch(() => ({}));
+    setDeletingId(null);
+
+    if (!response.ok) {
+      setError(data.error ?? 'Unable to delete project.');
+      return;
+    }
+
+    setProjects(prev => prev.filter(item => item.id !== project.id));
   }
 
   const filteredProjects = useMemo(() => {
@@ -260,7 +281,7 @@ export default function DashboardPage() {
                       {safeHost(project.website_url).slice(0, 1).toUpperCase()}
                     </div>
                   </div>
-                  <div className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <div className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
                     <Link
                       href={`/dashboard/projects/${project.id}`}
                       className="rounded-xl bg-violet-600 px-4 py-2.5 text-center text-sm font-bold text-white hover:bg-violet-700"
@@ -273,6 +294,14 @@ export default function DashboardPage() {
                     >
                       Install
                     </Link>
+                    <button
+                      type="button"
+                      onClick={() => deleteProject(project)}
+                      disabled={deletingId === project.id}
+                      className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {deletingId === project.id ? 'Deleting...' : 'Delete'}
+                    </button>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 text-xs font-semibold text-stone-400">
                     <span>Created {new Date(project.created_at).toLocaleDateString()}</span>
