@@ -32,9 +32,34 @@
   if (!projectId) { console.error('[Kaze] data-project-id attribute is missing.'); return; }
 
   var appOrigin = new URL(script.src).origin;
+  var tokenParam = 'gomega_client_token';
+
+  function getClientToken() {
+    var params = new URLSearchParams(window.location.search);
+    var token = params.get(tokenParam);
+    if (token) {
+      try { sessionStorage.setItem('kaze_client_token', token); } catch (_) {}
+      try {
+        params.delete(tokenParam);
+        var clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
+        history.replaceState(history.state, document.title, clean);
+      } catch (_) {}
+      return token;
+    }
+    try { return sessionStorage.getItem('kaze_client_token') || ''; } catch (_) { return ''; }
+  }
+
+  var clientToken = getClientToken();
+
+  function authHeaders(extra) {
+    var headers = extra || {};
+    if (clientToken) headers.Authorization = 'Bearer ' + clientToken;
+    return headers;
+  }
 
   // ─── Review-session gate ───────────────────────────────────────────────────
   function isReviewSession() {
+    if (!clientToken) return false;
     try { if (sessionStorage.getItem('kaze_review') === '1') return true; } catch (_) {}
     return new URLSearchParams(window.location.search).get('feedback') === '1';
   }
