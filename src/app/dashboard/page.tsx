@@ -21,6 +21,8 @@ export default function DashboardPage() {
   const [adminEmail, setAdminEmail] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
@@ -82,9 +84,6 @@ export default function DashboardPage() {
   }
 
   async function deleteProject(project: Project) {
-    const confirmed = window.confirm(`Delete "${project.name}"? This removes its tasks, comments, and members.`);
-    if (!confirmed) return;
-
     setDeletingId(project.id);
     setError('');
     const response = await dashboardFetch(`/api/projects/${project.id}`, {
@@ -99,6 +98,8 @@ export default function DashboardPage() {
     }
 
     setProjects(prev => prev.filter(item => item.id !== project.id));
+    setProjectToDelete(null);
+    setDeleteConfirmText('');
   }
 
   const filteredProjects = useMemo(() => {
@@ -277,11 +278,26 @@ export default function DashboardPage() {
                         {safeHost(project.website_url)}
                       </a>
                     </div>
-                    <div className="hidden h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-lg font-black text-sky-700 sm:flex">
-                      {safeHost(project.website_url).slice(0, 1).toUpperCase()}
+                    <div className="flex flex-shrink-0 items-start gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProjectToDelete(project);
+                          setDeleteConfirmText('');
+                        }}
+                        disabled={deletingId === project.id}
+                        className="flex h-8 w-8 items-center justify-center rounded-xl border border-red-100 bg-red-50 text-sm font-black text-red-500 opacity-80 transition hover:bg-red-100 hover:opacity-100 disabled:cursor-not-allowed disabled:opacity-40"
+                        title="Delete project"
+                        aria-label={`Delete ${project.name}`}
+                      >
+                        ×
+                      </button>
+                      <div className="hidden h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-lg font-black text-sky-700 sm:flex">
+                        {safeHost(project.website_url).slice(0, 1).toUpperCase()}
+                      </div>
                     </div>
                   </div>
-                  <div className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                  <div className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]">
                     <Link
                       href={`/dashboard/projects/${project.id}`}
                       className="rounded-xl bg-violet-600 px-4 py-2.5 text-center text-sm font-bold text-white hover:bg-violet-700"
@@ -294,14 +310,6 @@ export default function DashboardPage() {
                     >
                       Install
                     </Link>
-                    <button
-                      type="button"
-                      onClick={() => deleteProject(project)}
-                      disabled={deletingId === project.id}
-                      className="rounded-xl border border-red-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {deletingId === project.id ? 'Deleting...' : 'Delete'}
-                    </button>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 text-xs font-semibold text-stone-400">
                     <span>Created {new Date(project.created_at).toLocaleDateString()}</span>
@@ -384,6 +392,68 @@ export default function DashboardPage() {
               className="mt-5 w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60"
             >
               {creating ? 'Creating…' : 'Create project'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {projectToDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 p-4"
+          onClick={() => {
+            if (deletingId) return;
+            setProjectToDelete(null);
+            setDeleteConfirmText('');
+          }}
+        >
+          <form
+            className="w-full max-w-md rounded-2xl border border-red-100 bg-white p-6 shadow-xl"
+            onClick={event => event.stopPropagation()}
+            onSubmit={event => {
+              event.preventDefault();
+              if (deleteConfirmText !== 'CONFIRM') return;
+              deleteProject(projectToDelete);
+            }}
+          >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-red-500">Delete project</p>
+                <h2 className="mt-1 text-lg font-black text-stone-900">{projectToDelete.name}</h2>
+              </div>
+              <button
+                type="button"
+                disabled={Boolean(deletingId)}
+                onClick={() => {
+                  setProjectToDelete(null);
+                  setDeleteConfirmText('');
+                }}
+                className="rounded-lg border border-stone-200 px-2 py-1 text-sm text-stone-500 hover:bg-stone-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm leading-6 text-red-700">
+              This will permanently delete the project, tasks, comments, members, and client access links for this project.
+            </div>
+
+            <label className="mt-4 block text-sm font-semibold text-stone-700">
+              Type <span className="font-black text-red-600">CONFIRM</span> to delete
+              <input
+                value={deleteConfirmText}
+                onChange={event => setDeleteConfirmText(event.target.value)}
+                className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-red-500 focus:bg-white focus:ring-2 focus:ring-red-100"
+                placeholder="CONFIRM"
+                autoFocus
+              />
+            </label>
+
+            <button
+              type="submit"
+              disabled={deleteConfirmText !== 'CONFIRM' || deletingId === projectToDelete.id}
+              className="mt-5 w-full rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {deletingId === projectToDelete.id ? 'Deleting...' : 'Delete permanently'}
             </button>
           </form>
         </div>
