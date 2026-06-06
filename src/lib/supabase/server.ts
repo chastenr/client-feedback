@@ -133,6 +133,18 @@ export async function requireProjectAccess(request: Request, projectId: string) 
   return result;
 }
 
+export async function getUserDisplayName(client: SupabaseClient, user: User) {
+  const fallback = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Client';
+
+  const { data } = await client
+    .from('profiles')
+    .select('full_name,username,email')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  return data?.full_name || data?.username || data?.email || fallback;
+}
+
 export function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
