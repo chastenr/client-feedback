@@ -156,16 +156,26 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
               {/\.(mp4|webm|mov)(\?|$)/i.test(task.attachment_url) ? (
                 <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-950">
                   <video src={task.attachment_url} controls className="block w-full max-h-[480px]" preload="metadata" />
+                  <div className="px-4 py-3">
+                    <a href={task.attachment_url} download target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-violet-400 hover:text-violet-300">
+                      Download video ↓
+                    </a>
+                  </div>
                 </div>
               ) : (
                 <div className="flex items-center gap-4 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={task.attachment_url} alt="Attached file" className="h-16 w-24 flex-shrink-0 rounded-xl border border-stone-200 object-cover" />
+                  <img src={task.attachment_url} alt="Attached file" className="h-20 w-28 flex-shrink-0 rounded-xl border border-stone-200 object-cover cursor-pointer" onClick={() => window.open(task.attachment_url!, '_blank')} />
                   <div>
-                    <p className="text-sm font-semibold text-stone-700">Attached image</p>
-                    <a href={task.attachment_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-sm font-bold text-violet-600 hover:text-violet-800">
-                      View / Download ↗
-                    </a>
+                    <p className="text-sm font-semibold text-stone-700">Attached file</p>
+                    <div className="mt-2 flex gap-4">
+                      <a href={task.attachment_url} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-violet-600 hover:text-violet-800">
+                        View ↗
+                      </a>
+                      <a href={task.attachment_url} download target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-stone-500 hover:text-stone-700">
+                        Download ↓
+                      </a>
+                    </div>
                   </div>
                 </div>
               )}

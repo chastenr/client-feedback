@@ -702,23 +702,33 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                   </div>
                 </div>
 
-                {/* Attachment */}
+                {/* Attachment — shown below feedback as a downloadable file */}
                 {drawerTask.attachment_url && (
                   <div>
                     <p className="mb-2 text-xs font-bold uppercase tracking-widest text-stone-400">Attachment</p>
                     {isVideoUrl(drawerTask.attachment_url) ? (
                       <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-950">
-                        <video src={drawerTask.attachment_url} controls className="block w-full max-h-[300px]" preload="metadata" />
+                        <video src={drawerTask.attachment_url} controls className="block w-full max-h-[280px]" preload="metadata" />
+                        <div className="px-4 py-2">
+                          <a href={drawerTask.attachment_url} target="_blank" rel="noopener noreferrer" download className="text-xs font-bold text-violet-400 hover:text-violet-300">
+                            Download video ↓
+                          </a>
+                        </div>
                       </div>
                     ) : (
-                      <div className="flex items-center gap-3 rounded-xl border border-stone-200 bg-stone-50 px-4 py-3">
+                      <div className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={drawerTask.attachment_url} alt="Attachment thumbnail" className="h-14 w-20 flex-shrink-0 rounded-lg border border-stone-200 object-cover" />
+                        <img src={drawerTask.attachment_url} alt="Attachment" className="h-16 w-24 flex-shrink-0 rounded-lg border border-stone-200 object-cover" />
                         <div className="min-w-0 flex-1">
-                          <p className="text-xs font-semibold text-stone-600">Attached image</p>
-                          <a href={drawerTask.attachment_url} target="_blank" rel="noopener noreferrer" className="mt-1 inline-block text-xs font-bold text-violet-600 hover:text-violet-800">
-                            View / Download ↗
-                          </a>
+                          <p className="text-sm font-semibold text-stone-700">Attached file</p>
+                          <div className="mt-2 flex gap-3">
+                            <a href={drawerTask.attachment_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-violet-600 hover:text-violet-800">
+                              View ↗
+                            </a>
+                            <a href={drawerTask.attachment_url} download target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-stone-500 hover:text-stone-700">
+                              Download ↓
+                            </a>
+                          </div>
                         </div>
                       </div>
                     )}
