@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getAdminClient, jsonError } from '@/lib/supabase/server';
+import { getAdminClient, getUserDisplayName, jsonError } from '@/lib/supabase/server';
 import { commentSchema } from '@/lib/api/validation';
 import { createLocalComment, isLocalMode } from '@/lib/local-store';
 
@@ -21,12 +21,14 @@ export async function POST(
   const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
 
+  const authorName = result.user ? await getUserDisplayName(result.client, result.user) : 'Admin';
+
   const { data, error } = await result.client
     .from('task_comments')
     .insert({
       task_id: params.id,
       user_id: result.user?.id ?? null,
-      author_name: 'Admin',
+      author_name: authorName,
       message: parsed.data.message,
     })
     .select('*')

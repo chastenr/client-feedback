@@ -65,6 +65,9 @@ export interface FeedbackTask {
   assignee_id: string | null;
   reporter_name: string | null;
   reporter_email: string | null;
+  last_editor_name?: string | null;
+  last_editor_at?: string | null;
+  last_editor_message?: string | null;
   created_at: string;
   updated_at: string;
   projects?: Pick<Project, 'id' | 'name' | 'website_url' | 'public_token' | 'share_token'>;

@@ -769,11 +769,22 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                               )}
                               <div className="p-3">
                                 <div className="mb-2 flex items-center justify-between gap-2">
-                                  <span className="truncate rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-bold text-violet-700">{task.reporter_name || 'Anonymous'}</span>
+                                  <span className={`truncate rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                                    task.last_editor_name
+                                      ? 'bg-sky-50 text-sky-700'
+                                      : 'bg-stone-100 text-stone-500'
+                                  }`}>
+                                    {task.last_editor_name ? `Last: ${task.last_editor_name}` : 'No editor yet'}
+                                  </span>
                                   <span className="ml-auto text-[11px] text-stone-400">{new Date(task.created_at).toLocaleDateString()}</span>
                                 </div>
                                 <p className="line-clamp-3 text-sm font-semibold leading-5 text-stone-900">{task.comment ?? task.description ?? task.title}</p>
                                 <p className="mt-2 truncate text-xs text-stone-400">{task.page_path ?? safePath(task.page_url)}</p>
+                                {task.last_editor_message && (
+                                  <p className="mt-2 line-clamp-1 text-[11px] font-semibold text-sky-600">
+                                    {task.last_editor_message}
+                                  </p>
+                                )}
                                 <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2 text-[11px] font-bold text-stone-400">
                                   <span>{task.attachment_url ? 'Attachment' : task.screenshot_url ? 'Screenshot' : 'Pin only'}</span>
                                   <span>{task.element_text ? 'Element text' : 'Selector'}</span>
