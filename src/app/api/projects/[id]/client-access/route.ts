@@ -5,6 +5,13 @@ import { getAdminClient, jsonError } from '@/lib/supabase/server';
 
 export const runtime = 'nodejs';
 
+function clientAccessError(message: string, status = 500) {
+  if (/bearer token|jwt|not authorized|invalid api key|invalid token/i.test(message)) {
+    return jsonError('Supabase service role key is missing or invalid. Set SUPABASE_SERVICE_ROLE_KEY in Vercel to the project service_role secret, then redeploy.', 503);
+  }
+  return jsonError(message, status);
+}
+
 async function findAuthUserByEmail(client: SupabaseClient, email: string) {
   let page = 1;
   const perPage = 100;
@@ -59,7 +66,7 @@ export async function POST(
       password: parsed.data.password,
       user_metadata: { full_name: fullName },
     });
-    if (updateError) return jsonError(updateError.message, 500);
+    if (updateError) return clientAccessError(updateError.message);
   } else {
     const { data: created, error: createError } = await result.client.auth.admin.createUser({
       email,
@@ -72,14 +79,14 @@ export async function POST(
       userId = created.user.id;
     } else if (createError) {
       const { user: authUser, error: lookupError } = await findAuthUserByEmail(result.client, email);
-      if (lookupError) return jsonError(lookupError.message, 500);
-      if (!authUser) return jsonError(createError.message, 500);
+      if (lookupError) return clientAccessError(lookupError.message);
+      if (!authUser) return clientAccessError(createError.message);
 
       const { error: updateError } = await result.client.auth.admin.updateUserById(authUser.id, {
         password: parsed.data.password,
         user_metadata: { full_name: fullName },
       });
-      if (updateError) return jsonError(updateError.message, 500);
+      if (updateError) return clientAccessError(updateError.message);
 
       userId = authUser.id;
     }

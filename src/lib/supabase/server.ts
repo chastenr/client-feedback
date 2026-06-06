@@ -52,6 +52,10 @@ export function createServiceClient(): SupabaseClient {
   });
 }
 
+function serviceRoleConfigError() {
+  return jsonError('Supabase service role key is missing or invalid. Set SUPABASE_SERVICE_ROLE_KEY in Vercel to the project service_role secret, then redeploy.', 503);
+}
+
 export function getBearerToken(request: Request) {
   const header = request.headers.get('authorization');
   if (!header?.startsWith('Bearer ')) return null;
@@ -64,7 +68,12 @@ export async function getAdminClient(request: Request): Promise<{ client: Supaba
     const userClient = createUserClient(token);
     const { data, error } = await userClient.auth.getUser();
     if (error || !data.user) return jsonError('Admin login required.', 401);
-    const service = createServiceClient();
+    let service: SupabaseClient;
+    try {
+      service = createServiceClient();
+    } catch {
+      return serviceRoleConfigError();
+    }
     const { data: profile } = await service
       .from('profiles')
       .select('role')
@@ -75,7 +84,11 @@ export async function getAdminClient(request: Request): Promise<{ client: Supaba
   }
 
   if (process.env.ADMIN_AUTH_DISABLED === 'true') {
-    return { client: createServiceClient(), mode: 'service-dev', user: null };
+    try {
+      return { client: createServiceClient(), mode: 'service-dev', user: null };
+    } catch {
+      return serviceRoleConfigError();
+    }
   }
 
   return jsonError('Admin login required.', 401);
@@ -89,7 +102,11 @@ export async function getAuthenticatedClient(request: Request): Promise<{ client
   const { data, error } = await userClient.auth.getUser();
   if (error || !data.user) return jsonError('Login required.', 401);
 
-  return { client: createServiceClient(), mode: 'user', user: data.user };
+  try {
+    return { client: createServiceClient(), mode: 'user', user: data.user };
+  } catch {
+    return serviceRoleConfigError();
+  }
 }
 
 export async function requireProjectAccess(request: Request, projectId: string) {
