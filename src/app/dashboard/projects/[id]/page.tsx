@@ -32,6 +32,8 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [drawerComment, setDrawerComment] = useState('');
   const [drawerSaving, setDrawerSaving] = useState(false);
   const commentInputRef = useRef<HTMLInputElement>(null);
+  const screenshotScrollRef = useRef<HTMLDivElement>(null);
+  const [lightbox, setLightbox] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,6 +77,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     setDrawerComments([]);
     setDrawerComment('');
     setDrawerOpen(true);
+    setLightbox(false);
     setDrawerCommentsLoading(true);
     dashboardFetch(`/api/tasks/${task.id}`)
       .then(r => r.json().catch(() => ({})))
@@ -482,14 +485,41 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
               <div className="p-5 space-y-5">
                 {/* Screenshot / pin preview */}
                 <div>
-                  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-stone-400">Screenshot</p>
+                  <div className="mb-2 flex items-center justify-between">
+                    <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Screenshot</p>
+                    {drawerTask.screenshot_url && (
+                      <button
+                        type="button"
+                        onClick={() => setLightbox(true)}
+                        className="text-xs font-semibold text-violet-600 hover:text-violet-800"
+                      >
+                        View full ↗
+                      </button>
+                    )}
+                  </div>
                   {drawerTask.screenshot_url ? (
-                    <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-100">
+                    <div
+                      ref={screenshotScrollRef}
+                      className="max-h-[420px] overflow-y-auto overflow-x-hidden rounded-xl border border-stone-200 bg-stone-100 cursor-zoom-in"
+                      onClick={() => setLightbox(true)}
+                    >
                       <div className="relative">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={drawerTask.screenshot_url} alt="Screenshot with feedback pin" className="block w-full" />
+                        <img
+                          src={drawerTask.screenshot_url}
+                          alt="Screenshot with feedback pin"
+                          className="block w-full"
+                          onLoad={() => {
+                            const el = screenshotScrollRef.current;
+                            if (!el) return;
+                            const img = el.querySelector('img') as HTMLImageElement | null;
+                            if (!img) return;
+                            const scrollTarget = (pinTopPercent / 100) * img.offsetHeight - el.clientHeight / 2;
+                            el.scrollTop = Math.max(0, scrollTarget);
+                          }}
+                        />
                         <div
-                          className="task-pin absolute h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-violet-600 shadow-xl ring-8 ring-violet-500/20"
+                          className="task-pin absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-violet-600 shadow-xl ring-8 ring-violet-500/20"
                           style={{ '--pin-left': `${pinLeftPercent}%`, '--pin-top': `${pinTopPercent}%` } as React.CSSProperties}
                         />
                       </div>
@@ -584,6 +614,38 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
             </form>
           </aside>
         </>
+      )}
+
+      {/* Screenshot lightbox */}
+      {lightbox && drawerTask?.screenshot_url && (
+        <div
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-stone-950/90 p-6"
+          onClick={() => setLightbox(false)}
+        >
+          <div className="relative mx-auto my-auto" onClick={e => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setLightbox(false)}
+              className="absolute -right-3 -top-3 z-10 flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-bold text-stone-700 shadow-lg hover:bg-stone-100"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+            <div className="relative overflow-hidden rounded-xl shadow-2xl">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={drawerTask.screenshot_url}
+                alt="Full page screenshot"
+                className="block max-w-[90vw]"
+                style={{ width: `${drawerTask.viewport_width}px`, maxWidth: '90vw' }}
+              />
+              <div
+                className="task-pin absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-violet-600 shadow-xl ring-8 ring-violet-500/20"
+                style={{ '--pin-left': `${pinLeftPercent}%`, '--pin-top': `${pinTopPercent}%` } as React.CSSProperties}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Share modal */}
