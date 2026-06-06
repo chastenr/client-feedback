@@ -10,6 +10,10 @@ interface SlackNotification {
   message: string;
 }
 
+export function isSlackConfigured() {
+  return Boolean(process.env.SLACK_WEBHOOK_URL);
+}
+
 function truncate(value: string, max = 240) {
   return value.length > max ? `${value.slice(0, max - 1)}...` : value;
 }
@@ -23,7 +27,7 @@ function slackEscape(value: string) {
 
 export async function sendSlackNotification(notification: SlackNotification) {
   const webhookUrl = process.env.SLACK_WEBHOOK_URL;
-  if (!webhookUrl) return;
+  if (!webhookUrl) return { ok: false, skipped: true, error: 'Slack webhook is not configured.' };
 
   const title = notification.type === 'feedback' ? 'New client feedback' : 'New client comment';
   const project = notification.projectName || notification.projectUrl || 'Project';
@@ -71,9 +75,13 @@ export async function sendSlackNotification(notification: SlackNotification) {
     });
 
     if (!response.ok) {
-      console.error('[Kaze] Slack notification failed:', await response.text());
+      const error = await response.text();
+      console.error('[Kaze] Slack notification failed:', error);
+      return { ok: false, skipped: false, error };
     }
+    return { ok: true, skipped: false };
   } catch (error) {
     console.error('[Kaze] Slack notification failed:', error);
+    return { ok: false, skipped: false, error: error instanceof Error ? error.message : 'Slack notification failed.' };
   }
 }

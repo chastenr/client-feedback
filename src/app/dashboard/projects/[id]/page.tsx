@@ -90,6 +90,10 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [memberMessage, setMemberMessage] = useState('');
   const [memberError, setMemberError] = useState('');
   const [memberSaving, setMemberSaving] = useState(false);
+  const [slackConfigured, setSlackConfigured] = useState(false);
+  const [slackMessage, setSlackMessage] = useState('');
+  const [slackError, setSlackError] = useState('');
+  const [slackTesting, setSlackTesting] = useState(false);
 
   // Drawer state
   const [drawerTask, setDrawerTask] = useState<FeedbackTask | null>(null);
@@ -105,19 +109,22 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [projectResponse, tasksResponse, membersResponse] = await Promise.all([
+    const [projectResponse, tasksResponse, membersResponse, slackResponse] = await Promise.all([
       dashboardFetch(`/api/projects/${params.id}`),
       dashboardFetch(`/api/projects/${params.id}/tasks`),
       dashboardFetch(`/api/projects/${params.id}/members`),
+      dashboardFetch('/api/integrations/slack'),
     ]);
     const projectData = await projectResponse.json().catch(() => ({}));
     const tasksData = await tasksResponse.json().catch(() => ({}));
     const membersData = await membersResponse.json().catch(() => ({}));
+    const slackData = await slackResponse.json().catch(() => ({}));
     if (!projectResponse.ok) setError(projectData.error ?? 'Unable to load project.');
     else setProject(projectData.project);
     if (!tasksResponse.ok) setError(tasksData.error ?? 'Unable to load tasks.');
     else setTasks(tasksData.tasks ?? []);
     if (membersResponse.ok) setMembers(membersData.members ?? []);
+    if (slackResponse.ok) setSlackConfigured(Boolean(slackData.configured));
     setLoading(false);
   }, [params.id]);
 
@@ -316,6 +323,28 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
       return;
     }
     setMembers(prev => prev.filter(member => member.id !== memberId));
+  }
+
+  async function testSlack() {
+    if (!project) return;
+    setSlackTesting(true);
+    setSlackMessage('');
+    setSlackError('');
+
+    const response = await dashboardFetch('/api/integrations/slack', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ projectId: project.id }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setSlackTesting(false);
+
+    if (!response.ok) {
+      setSlackError(data.error ?? 'Slack test failed.');
+      return;
+    }
+
+    setSlackMessage('Test sent to Slack.');
   }
 
   function memberProfile(member: ProjectMember) {
@@ -866,6 +895,60 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                   <dd className="mt-0.5 text-stone-900">{new Date(project.created_at).toLocaleDateString()}</dd>
                 </div>
               </dl>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex gap-3">
+                  <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-sky-700">
+                    <Icon name="install" className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-stone-900">Integrations</h2>
+                    <p className="mt-1 text-sm leading-6 text-stone-500">
+                      Notify your team when clients leave feedback or reply to a task.
+                    </p>
+                  </div>
+                </div>
+                <span className={`w-fit rounded-full px-3 py-1 text-xs font-bold ${
+                  slackConfigured
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : 'bg-amber-50 text-amber-700'
+                }`}>
+                  Slack {slackConfigured ? 'enabled' : 'not connected'}
+                </span>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-stone-200 bg-stone-50 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-black text-stone-900">Slack notifications</p>
+                    <p className="mt-1 text-sm leading-6 text-stone-500">
+                      Sends a message with a direct task link when a client creates feedback or comments.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={testSlack}
+                    disabled={!slackConfigured || slackTesting}
+                    className="w-fit rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {slackTesting ? 'Sending...' : 'Send test'}
+                  </button>
+                </div>
+
+                {!slackConfigured && (
+                  <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                    Add <code className="rounded bg-white/70 px-1 py-0.5 text-xs">SLACK_WEBHOOK_URL</code> in Vercel environment variables, then redeploy.
+                  </div>
+                )}
+                {slackMessage && (
+                  <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">{slackMessage}</p>
+                )}
+                {slackError && (
+                  <p className="mt-4 rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{slackError}</p>
+                )}
+              </div>
             </div>
 
             <div className="mt-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
