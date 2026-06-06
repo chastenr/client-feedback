@@ -123,7 +123,9 @@ export async function POST(request: Request) {
       const { error: uploadError } = await supabase.storage
         .from('feedback-screenshots')
         .upload(filePath, image.buffer, { contentType: image.contentType, upsert: false });
-      if (!uploadError) {
+      if (uploadError) {
+        console.error('[Kaze] Screenshot upload failed:', uploadError.message);
+      } else {
         const { data } = supabase.storage.from('feedback-screenshots').getPublicUrl(filePath);
         screenshotUrl = data.publicUrl;
       }
