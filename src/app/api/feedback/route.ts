@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient, jsonError, requireProjectAccess } from '@/lib/supabase/server';
+import { createServiceClient, getUserDisplayName, jsonError, requireProjectAccess } from '@/lib/supabase/server';
 import { widgetFeedbackSchema } from '@/lib/api/validation';
 import { createLocalTask, getLocalProjectByToken, isLocalMode } from '@/lib/local-store';
 
@@ -40,8 +40,6 @@ export async function POST(request: Request) {
   const {
     project_id,
     comment,
-    reporter_name,
-    reporter_email,
     page_url,
     page_path,
     selector,
@@ -94,8 +92,8 @@ export async function POST(request: Request) {
       userAgent: user_agent ?? null,
       consoleErrors: [],
       priority: 'medium',
-      reporterName: reporter_name ?? null,
-      reporterEmail: reporter_email ?? null,
+      reporterName: 'Client',
+      reporterEmail: null,
     });
     if (!task) {
       return NextResponse.json({ error: 'Invalid project ID.' }, { status: 404, headers: corsHeaders });
@@ -122,6 +120,8 @@ export async function POST(request: Request) {
   if (access instanceof NextResponse) {
     return NextResponse.json(await access.json(), { status: access.status, headers: corsHeaders });
   }
+  const reporterName = await getUserDisplayName(supabase, access.user);
+  const reporterEmail = access.user.email ?? null;
 
   const origin = request.headers.get('origin') ?? request.headers.get('referer');
   if (project.allowed_origin && origin) {
@@ -192,8 +192,8 @@ export async function POST(request: Request) {
       console_errors: [],
       status: 'backlog',
       priority: 'medium',
-      reporter_name: reporter_name ?? null,
-      reporter_email: reporter_email ?? null,
+      reporter_name: reporterName,
+      reporter_email: reporterEmail,
     })
     .select('id')
     .single();
@@ -207,5 +207,5 @@ export async function POST(request: Request) {
     );
   }
 
-  return NextResponse.json({ id: task.id, screenshotUrl }, { status: 201, headers: corsHeaders });
+  return NextResponse.json({ id: task.id, screenshotUrl, reporterName }, { status: 201, headers: corsHeaders });
 }

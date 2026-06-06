@@ -67,7 +67,7 @@
   try { sessionStorage.setItem('kaze_review', '1'); } catch (_) {}
 
   // ─── State ─────────────────────────────────────────────────────────────────
-  var state = { active: false, selected: null, hoverEl: null, pinCount: 0, attachedFile: null };
+  var state = { active: false, selected: null, hoverEl: null, pinCount: 0, attachedFile: null, submitting: false };
 
   // ─── Shadow DOM ────────────────────────────────────────────────────────────
   var host = document.createElement('div');
@@ -100,34 +100,34 @@
     '.pin-ring{position:absolute;left:50%;top:50%;width:38px;height:38px;border-radius:999px;background:rgba(124,58,237,.2);transform:translate(-50%,-50%);animation:kazePing 1.6s cubic-bezier(0,0,.2,1) infinite}',
     '@keyframes kazePing{0%{opacity:.7;transform:translate(-50%,-50%) scale(.7)}100%{opacity:0;transform:translate(-50%,-50%) scale(1.9)}}',
     '.modal-backdrop{position:fixed;inset:0;z-index:2147483646;background:rgba(28,25,23,.25)}',
-    '.modal{position:fixed;right:22px;bottom:22px;z-index:2147483647;width:min(380px,calc(100vw - 32px));background:#fff;border:1px solid #e7e5e4;border-radius:16px;box-shadow:0 24px 70px rgba(28,25,23,.2);overflow:hidden;color:#1c1917}',
-    '.modal header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 14px;border-bottom:1px solid #f5f5f4}',
+    '.modal{position:fixed;right:22px;bottom:22px;z-index:2147483647;width:min(340px,calc(100vw - 32px));background:#fff;border:1px solid #e7e5e4;border-radius:14px;box-shadow:0 20px 58px rgba(28,25,23,.18);overflow:hidden;color:#1c1917}',
+    '.modal header{display:flex;align-items:center;justify-content:space-between;padding:13px 15px 12px;border-bottom:1px solid #f5f5f4}',
     '.modal-title{display:flex;align-items:center;gap:8px}',
     '.modal-badge{width:8px;height:8px;border-radius:999px;background:#7c3aed;display:inline-block}',
     '.modal h2{margin:0;font-size:14px;font-weight:800;color:#1c1917}',
-    '.modal .close{border:0;background:transparent;color:#a8a29e;font-size:20px;line-height:1;cursor:pointer;padding:2px;border-radius:6px;transition:background .15s}',
+    '.modal .close{border:0;background:transparent;color:#a8a29e;font-size:18px;line-height:1;cursor:pointer;padding:2px;border-radius:6px;transition:background .15s}',
     '.modal .close:hover{background:#f5f5f4;color:#1c1917}',
-    '.form{padding:16px 18px;display:grid;gap:12px}',
+    '.form{padding:14px 15px;display:grid;gap:10px}',
     '.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}',
     'label{display:grid;gap:5px;font-size:11px;font-weight:700;color:#78716c;letter-spacing:.03em;text-transform:uppercase}',
-    'input,textarea{width:100%;border:1.5px solid #e7e5e4;border-radius:10px;padding:9px 11px;font-size:13px;color:#1c1917;background:#fafaf9;outline:none;transition:border-color .15s,box-shadow .15s}',
-    'textarea{min-height:90px;resize:vertical;line-height:1.5}',
+    'input,textarea{width:100%;border:1.5px solid #e7e5e4;border-radius:10px;padding:8px 10px;font-size:13px;color:#1c1917;background:#fafaf9;outline:none;transition:border-color .15s,box-shadow .15s}',
+    'textarea{min-height:78px;resize:vertical;line-height:1.45}',
     'input:focus,textarea:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.12);background:#fff}',
     '.meta-row{font-size:11px;color:#a8a29e;background:#fafaf9;border:1.5px solid #e7e5e4;border-radius:10px;padding:8px 11px;display:flex;justify-content:space-between;gap:8px;overflow:hidden}',
     '.meta-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
-    '.actions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 18px 16px}',
+    '.actions{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 15px 14px}',
     '.status{font-size:12px;color:#a8a29e}',
     '.error-msg{color:#dc2626}',
     '.success-msg{color:#16a34a}',
-    '.submit{border:0;background:#7c3aed;color:white;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:800;cursor:pointer;transition:background .15s}',
+    '.submit{border:0;background:#7c3aed;color:white;border-radius:10px;padding:9px 16px;font-size:13px;font-weight:800;cursor:pointer;transition:background .15s}',
     '.submit:hover{background:#6d28d9}',
     '.submit:disabled{opacity:.5;cursor:not-allowed}',
     // Attachment area
-    '.attach-zone{border:2px dashed #e7e5e4;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:700;color:#a8a29e;cursor:pointer;transition:border-color .15s,background .15s,color .15s;margin-top:4px}',
+    '.attach-zone{border:2px dashed #e7e5e4;border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;font-weight:700;color:#a8a29e;cursor:pointer;transition:border-color .15s,background .15s,color .15s;margin-top:4px}',
     '.attach-zone:hover,.attach-zone.kz-dragover{border-color:#7c3aed;background:rgba(124,58,237,.05);color:#7c3aed}',
     '.attach-preview{background:#fafaf9;border:1.5px solid #e7e5e4;border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:10px;margin-top:4px}',
-    '.attach-thumb{width:52px;height:38px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1px solid #e7e5e4}',
-    '.attach-vid-icon{width:52px;height:38px;background:#1c1917;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}',
+    '.attach-thumb{width:44px;height:34px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1px solid #e7e5e4}',
+    '.attach-vid-icon{width:44px;height:34px;background:#1c1917;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;color:#fff;font-weight:800}',
     '.attach-info{flex:1;min-width:0}',
     '.attach-fname{font-size:12px;font-weight:600;color:#44403c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}',
     '.attach-fsize{font-size:11px;color:#a8a29e;margin-top:2px;display:block}',
@@ -572,6 +572,7 @@
     removeByClass('modal-backdrop');
     removeByClass('modal');
     state.attachedFile = null;
+    state.submitting = false;
 
     var backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop';
@@ -583,10 +584,6 @@
       '<div class="form">',
       '<label>Comment<textarea name="comment" required maxlength="5000" placeholder="What would you like to change or report?"></textarea></label>',
       // attachment area injected by JS below
-      '<div class="row">',
-      '<label>Name (optional)<input name="name" maxlength="120" placeholder="Your name"></label>',
-      '<label>Email (optional)<input name="email" type="email" maxlength="180" placeholder="your@email.com"></label>',
-      '</div>',
       '<div class="meta-row"><span>' + escapeHtml(window.location.pathname) + '</span><span>' + escapeHtml(state.selected.selector || '') + '</span></div>',
       '</div>',
       '<div class="actions"><span class="status"></span><button class="submit" type="submit">Send feedback</button></div>',
@@ -594,7 +591,7 @@
 
     // ── Attachment zone ───────────────────────────────────────────────────
     var formDiv = modal.querySelector('.form');
-    var rowDiv = modal.querySelector('.row');
+    var metaRow = modal.querySelector('.meta-row');
     var attachLabel = document.createElement('label');
     attachLabel.style.display = 'grid';
     attachLabel.style.gap = '0';
@@ -608,7 +605,7 @@
 
     var zone = document.createElement('div');
     zone.className = 'attach-zone';
-    zone.innerHTML = '<span>📎</span><span>Attach screenshot, image, or video</span>';
+    zone.innerHTML = '<span>📎</span><span>Attach image, video, PDF, or text</span>';
     attachLabel.appendChild(zone);
 
     var preview = document.createElement('div');
@@ -616,23 +613,31 @@
     preview.style.display = 'none';
     attachLabel.appendChild(preview);
 
-    formDiv.insertBefore(attachLabel, rowDiv);
+    formDiv.insertBefore(attachLabel, metaRow);
 
     function showPreview(file) {
       zone.style.display = 'none';
       preview.style.display = 'flex';
       preview.innerHTML = '';
       var isVideo = file.type.startsWith('video/');
+      var isImage = file.type.startsWith('image/');
       if (isVideo) {
         var icon = document.createElement('div');
         icon.className = 'attach-vid-icon';
         icon.textContent = '▶';
         preview.appendChild(icon);
-      } else {
+      } else if (isImage) {
         var thumb = document.createElement('img');
         thumb.className = 'attach-thumb';
         thumb.src = URL.createObjectURL(file);
         preview.appendChild(thumb);
+      } else {
+        var fileIcon = document.createElement('div');
+        fileIcon.className = 'attach-vid-icon';
+        fileIcon.style.background = '#f5f5f4';
+        fileIcon.style.color = '#57534e';
+        fileIcon.textContent = file.type === 'application/pdf' ? 'PDF' : 'FILE';
+        preview.appendChild(fileIcon);
       }
       var info = document.createElement('div');
       info.className = 'attach-info';
@@ -718,12 +723,16 @@
 
   async function submitFeedback(event) {
     event.preventDefault();
+    if (state.submitting) return;
+    state.submitting = true;
     var form = event.currentTarget;
     var statusEl = form.querySelector('.status');
     var button = form.querySelector('.submit');
     button.disabled = true;
+    button.textContent = 'Sending…';
     statusEl.className = 'status';
 
+    try {
     // Always auto-capture the page screenshot
     statusEl.textContent = 'Capturing screenshot…';
     var screenshot = await captureScreenshot();
@@ -744,8 +753,10 @@
         });
         var uploadBody = await uploadRes.json().catch(function () { return {}; });
         if (uploadRes.ok && uploadBody.url) attachmentUrl = uploadBody.url;
-        // If upload fails, still submit — just without the attachment
-      } catch (_) {}
+        else throw new Error(uploadBody && uploadBody.error ? uploadBody.error : 'Attachment upload failed. Please try again.');
+      } catch (uploadErr) {
+        throw new Error(uploadErr && uploadErr.message ? uploadErr.message : 'Attachment upload failed. Please try again.');
+      }
     }
 
     statusEl.textContent = 'Sending…';
@@ -754,8 +765,8 @@
     var payload = {
       project_id: projectId,
       comment: String(formData.get('comment') || '').trim(),
-      reporter_name: String(formData.get('name') || '').trim() || null,
-      reporter_email: String(formData.get('email') || '').trim() || null,
+      reporter_name: null,
+      reporter_email: null,
       page_url: window.location.href,
       page_path: window.location.pathname,
       selector: state.selected.selector,
@@ -775,7 +786,6 @@
       attachment_url: attachmentUrl,
     };
 
-    try {
       var response = await fetch(appOrigin + '/api/feedback', {
         method: 'POST',
         headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -800,7 +810,7 @@
         scroll_x: state.selected.scrollX,
         scroll_y: state.selected.scrollY,
         comment: String(formData.get('comment') || '').trim(),
-        reporter_name: String(formData.get('name') || '').trim() || null,
+        reporter_name: body && body.reporterName ? body.reporterName : 'Client',
       }, state.pinCount);
 
       statusEl.className = 'status success-msg';
@@ -811,7 +821,9 @@
         removeByClass('modal-backdrop');
       }, 1000);
     } catch (err) {
+      state.submitting = false;
       button.disabled = false;
+      button.textContent = 'Send feedback';
       statusEl.className = 'status error-msg';
       statusEl.textContent = err && err.message ? err.message : 'Could not send feedback. Please try again.';
     }

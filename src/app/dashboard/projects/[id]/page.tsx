@@ -716,7 +716,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                     <p className="mb-2 text-xs font-bold uppercase tracking-widest text-stone-400">Attachment</p>
                     {isVideoUrl(drawerTask.attachment_url) ? (
                       <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-950">
-                        <video src={drawerTask.attachment_url} controls className="block w-full max-h-[280px]" preload="metadata" />
+                        <video src={drawerTask.attachment_url} controls className="block w-full max-h-[220px]" preload="metadata" />
                         <div className="px-4 py-2">
                           <a href={drawerTask.attachment_url} target="_blank" rel="noopener noreferrer" download className="text-xs font-bold text-violet-400 hover:text-violet-300">
                             Download video ↓
@@ -727,7 +727,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                       <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
                         <a href={drawerTask.attachment_url} target="_blank" rel="noopener noreferrer" className="block bg-stone-50">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={drawerTask.attachment_url} alt="Client attachment" className="block max-h-[280px] w-full object-contain" />
+                          <img src={drawerTask.attachment_url} alt="Client attachment" className="block max-h-[180px] w-full object-contain" />
                         </a>
                         <div className="flex items-center justify-between gap-3 px-4 py-3">
                           <p className="min-w-0 truncate text-sm font-semibold text-stone-700">Attached image</p>

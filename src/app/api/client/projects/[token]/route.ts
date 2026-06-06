@@ -20,10 +20,9 @@ export async function GET(
 
   const { data: membership } = await result.client
     .from('project_members')
-    .select('id')
+    .select('id,role')
     .eq('project_id', project.id)
     .eq('user_id', result.user.id)
-    .eq('role', 'viewer')
     .maybeSingle();
 
   if (!membership) return NextResponse.json({ error: 'You do not have access to this client project.' }, { status: 403 });

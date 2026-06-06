@@ -11,7 +11,6 @@ export async function GET(request: Request) {
     .from('project_members')
     .select('role,projects(id,name,client_name,website_url,public_token,share_token,created_at)')
     .eq('user_id', result.user.id)
-    .eq('role', 'viewer')
     .order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

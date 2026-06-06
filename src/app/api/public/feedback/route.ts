@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient, jsonError, requireProjectAccess } from '@/lib/supabase/server';
+import { createServiceClient, getUserDisplayName, jsonError, requireProjectAccess } from '@/lib/supabase/server';
 import { publicFeedbackSchema } from '@/lib/api/validation';
 import { createLocalTask, isLocalMode } from '@/lib/local-store';
 
@@ -93,6 +93,8 @@ export async function POST(request: Request) {
   if (access instanceof NextResponse) {
     return NextResponse.json(await access.json(), { status: access.status, headers: corsHeaders });
   }
+  const reporterName = await getUserDisplayName(supabase, access.user);
+  const reporterEmail = access.user.email ?? null;
 
   let screenshotUrl: string | null = payload.screenshot ?? null;
 
@@ -147,8 +149,8 @@ export async function POST(request: Request) {
       console_errors: payload.consoleErrors,
       status: 'backlog',
       priority: payload.priority,
-      reporter_name: payload.reporterName || null,
-      reporter_email: payload.reporterEmail || null,
+      reporter_name: reporterName,
+      reporter_email: reporterEmail,
     })
     .select('id')
     .single();
@@ -157,5 +159,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: insertError?.message ?? 'Unable to save feedback.' }, { status: 500, headers: corsHeaders });
   }
 
-  return NextResponse.json({ id: task.id, screenshotUrl }, { status: 201, headers: corsHeaders });
+  return NextResponse.json({ id: task.id, screenshotUrl, reporterName }, { status: 201, headers: corsHeaders });
 }
