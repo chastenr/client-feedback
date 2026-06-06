@@ -99,6 +99,7 @@
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
           if (!data || !data.tasks) return;
+          removeByClass('epin');
           data.tasks.forEach(function (task, i) {
             renderExistingPin(task, i + 1);
           });

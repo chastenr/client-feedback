@@ -53,7 +53,23 @@ export async function GET(request: Request) {
   return NextResponse.json({ tasks: tasks.map(miniTask) }, { headers: cors });
 }
 
-function miniTask(t: Record<string, unknown>) {
+interface ProjectTaskRow {
+  id?: unknown;
+  x?: unknown;
+  y?: unknown;
+  scroll_x?: unknown;
+  scroll_y?: unknown;
+  viewport_width?: unknown;
+  viewport_height?: unknown;
+  page_path?: unknown;
+  page_url?: unknown;
+  comment?: unknown;
+  description?: unknown;
+  reporter_name?: unknown;
+  status?: unknown;
+}
+
+function miniTask(t: ProjectTaskRow) {
   return {
     id: t.id,
     x: t.x,
@@ -87,9 +103,9 @@ function normalizePath(value: unknown) {
   return path.length > 1 ? path.replace(/\/+$/, '') : path;
 }
 
-function taskMatchesPage(pagePath: string) {
+function taskMatchesPage<T extends ProjectTaskRow>(pagePath: string) {
   const currentPath = normalizePath(pagePath);
-  return (task: Record<string, unknown>) => {
+  return (task: T) => {
     const savedPath = normalizePath(task.page_path);
     const savedUrlPath = normalizePath(task.page_url);
     return savedPath === currentPath || savedUrlPath === currentPath;
