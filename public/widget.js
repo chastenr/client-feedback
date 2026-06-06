@@ -89,24 +89,69 @@
 
   var outline = document.createElement('div');
   outline.className = 'outline';
+  var lastKnownPath = window.location.pathname;
 
   // ─── Load and render existing pins ────────────────────────────────────────
   function loadExistingPins() {
+    var requestedPath = window.location.pathname;
+    removeByClass('epin');
+    state.pinCount = 0;
+
     try {
-      fetch(appOrigin + '/api/public/project-tasks?project_id=' + encodeURIComponent(projectId) + '&page_path=' + encodeURIComponent(window.location.pathname), {
+      fetch(appOrigin + '/api/public/project-tasks?project_id=' + encodeURIComponent(projectId) + '&page_path=' + encodeURIComponent(requestedPath), {
         mode: 'cors',
       })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
+          if (window.location.pathname !== requestedPath) return;
           if (!data || !data.tasks) return;
-          removeByClass('epin');
-          data.tasks.forEach(function (task, i) {
+          var tasks = data.tasks.filter(taskBelongsToCurrentPage);
+          tasks.forEach(function (task, i) {
             renderExistingPin(task, i + 1);
           });
-          state.pinCount = data.tasks.length;
+          state.pinCount = tasks.length;
         })
         .catch(function () {});
     } catch (_) {}
+  }
+
+  function normalizePath(value) {
+    if (!value) return '';
+    var path = String(value);
+    try {
+      path = new URL(path, window.location.origin).pathname;
+    } catch (_) {
+      path = path.split('?')[0].split('#')[0];
+    }
+    if (path.charAt(0) !== '/') path = '/' + path;
+    return path.length > 1 ? path.replace(/\/+$/, '') : path;
+  }
+
+  function taskBelongsToCurrentPage(task) {
+    var currentPath = normalizePath(window.location.pathname);
+    return normalizePath(task.page_path) === currentPath || normalizePath(task.page_url) === currentPath;
+  }
+
+  function handlePathChange() {
+    if (lastKnownPath === window.location.pathname) return;
+    lastKnownPath = window.location.pathname;
+    removeByClass('epin');
+    removeByClass('pin');
+    loadExistingPins();
+  }
+
+  function watchPathChanges() {
+    ['pushState', 'replaceState'].forEach(function (method) {
+      var original = history[method];
+      if (typeof original !== 'function') return;
+      history[method] = function () {
+        var result = original.apply(this, arguments);
+        setTimeout(handlePathChange, 0);
+        return result;
+      };
+    });
+    window.addEventListener('popstate', function () { setTimeout(handlePathChange, 0); });
+    setInterval(handlePathChange, 700);
   }
 
   function renderExistingPin(task, number) {
@@ -141,6 +186,7 @@
   function init() {
     pingInstallCheck();
     loadExistingPins();
+    watchPathChanges();
     if (new URLSearchParams(window.location.search).get('feedback') === '1') {
       tab.classList.add('pulse');
       tab.addEventListener('animationend', function () { tab.classList.remove('pulse'); }, { once: true });

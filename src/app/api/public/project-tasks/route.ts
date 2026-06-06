@@ -79,6 +79,7 @@ function miniTask(t: ProjectTaskRow) {
     viewport_width: t.viewport_width,
     viewport_height: t.viewport_height,
     page_path: t.page_path,
+    page_url: t.page_url,
     comment: t.comment || t.description,
     reporter_name: t.reporter_name,
     status: t.status,
