@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 interface ClientProject {
@@ -18,11 +18,7 @@ export default function ClientPortalPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    load();
-  }, []);
-
-  async function getToken() {
+  const getToken = useCallback(async () => {
     const supabase = createBrowserSupabaseClient();
     if (!supabase) return null;
     const { data } = await supabase.auth.getSession();
@@ -32,9 +28,9 @@ export default function ClientPortalPage() {
     }
     setEmail(data.session.user.email ?? '');
     return data.session.access_token;
-  }
+  }, []);
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true);
     setError('');
     const token = await getToken();
@@ -47,7 +43,11 @@ export default function ClientPortalPage() {
     if (!response.ok) setError(data.error ?? 'Unable to load client projects.');
     else setProjects(data.projects ?? []);
     setLoading(false);
-  }
+  }, [getToken]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   async function signOut() {
     const supabase = createBrowserSupabaseClient();

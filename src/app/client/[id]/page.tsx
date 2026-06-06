@@ -13,6 +13,7 @@ interface ReviewProject {
 
 export default function ReviewPage({ params }: { params: { id: string } }) {
   const [project, setProject] = useState<ReviewProject | null>(null);
+  const [accessToken, setAccessToken] = useState('');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -28,6 +29,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
         window.location.href = `/client/login?next=${encodeURIComponent(`/client/${params.id}`)}`;
         return;
       }
+      setAccessToken(sessionData.session.access_token);
 
       fetch(`/api/client/projects/${params.id}`, {
         headers: { Authorization: `Bearer ${sessionData.session.access_token}` },
@@ -61,6 +63,7 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
     try {
       const url = new URL(project.website_url);
       url.searchParams.set('feedback', '1');
+      url.searchParams.set('gomega_client_token', accessToken);
       return url.toString();
     } catch {
       return project.website_url;
