@@ -23,6 +23,9 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [copiedSnippet, setCopiedSnippet] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [pageFilter, setPageFilter] = useState('all');
+  const [reporterFilter, setReporterFilter] = useState('all');
   const [clientEmail, setClientEmail] = useState('');
   const [clientUsername, setClientUsername] = useState('');
   const [clientPassword, setClientPassword] = useState('');
@@ -62,11 +65,49 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     load();
   }, [load]);
 
+  const pageOptions = useMemo(() => {
+    return Array.from(new Set(tasks.map(task => task.page_path || safePath(task.page_url)).filter(Boolean))).sort();
+  }, [tasks]);
+
+  const reporterOptions = useMemo(() => {
+    return Array.from(new Set(tasks.map(task => task.reporter_name || 'Anonymous'))).sort();
+  }, [tasks]);
+
+  const filteredTasks = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return tasks.filter(task => {
+      const page = task.page_path || safePath(task.page_url);
+      const reporter = task.reporter_name || 'Anonymous';
+      const searchable = [
+        task.title,
+        task.comment,
+        task.description,
+        task.page_url,
+        task.page_path,
+        task.selector,
+        task.element_text,
+        reporter,
+      ].filter(Boolean).join(' ').toLowerCase();
+
+      if (query && !searchable.includes(query)) return false;
+      if (pageFilter !== 'all' && page !== pageFilter) return false;
+      if (reporterFilter !== 'all' && reporter !== reporterFilter) return false;
+      return true;
+    });
+  }, [pageFilter, reporterFilter, searchQuery, tasks]);
+
   const grouped = useMemo(() => {
     return TASK_STATUSES.reduce<Record<TaskStatus, FeedbackTask[]>>((acc, status) => {
-      acc[status] = tasks.filter(task => task.status === status);
+      acc[status] = filteredTasks.filter(task => task.status === status);
       return acc;
     }, {} as Record<TaskStatus, FeedbackTask[]>);
+  }, [filteredTasks]);
+
+  const boardStats = useMemo(() => {
+    const open = tasks.filter(task => task.status !== 'done').length;
+    const withAttachments = tasks.filter(task => task.attachment_url).length;
+    const pages = new Set(tasks.map(task => task.page_path || safePath(task.page_url))).size;
+    return { open, withAttachments, pages };
   }, [tasks]);
 
   async function moveTask(taskId: string, status: TaskStatus) {
@@ -207,6 +248,18 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     return /\.pdf(\?|$)/i.test(url);
   }
 
+  function safePath(url: string) {
+    try {
+      return new URL(url).pathname || '/';
+    } catch {
+      return url;
+    }
+  }
+
+  function shortId(id: string) {
+    return id.slice(0, 8);
+  }
+
   function getPageUrl() {
     if (!drawerTask) return '#';
     try {
@@ -313,70 +366,208 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                 Loading board…
               </div>
             ) : (
-              <div className="flex gap-4 overflow-x-auto pb-6">
-                {TASK_STATUSES.map(status => (
-                  <section key={status} className="min-h-[560px] w-[300px] flex-shrink-0">
-                    <div className="mb-3 flex items-center justify-between rounded-xl border border-stone-200 bg-white px-3 py-2 shadow-sm">
-                      <h2 className="text-sm font-bold text-stone-700">{STATUS_LABELS[status]}</h2>
-                      <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-bold text-stone-500">{grouped[status].length}</span>
+              <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
+                <aside className="space-y-4">
+                  <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                    <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Board overview</p>
+                    <div className="mt-4 grid grid-cols-3 gap-2">
+                      <div className="rounded-xl bg-stone-50 px-3 py-2">
+                        <p className="text-lg font-black text-stone-900">{tasks.length}</p>
+                        <p className="text-[11px] font-semibold text-stone-400">Total</p>
+                      </div>
+                      <div className="rounded-xl bg-violet-50 px-3 py-2">
+                        <p className="text-lg font-black text-violet-700">{boardStats.open}</p>
+                        <p className="text-[11px] font-semibold text-violet-400">Open</p>
+                      </div>
+                      <div className="rounded-xl bg-stone-50 px-3 py-2">
+                        <p className="text-lg font-black text-stone-900">{boardStats.withAttachments}</p>
+                        <p className="text-[11px] font-semibold text-stone-400">Files</p>
+                      </div>
                     </div>
-                    <div
-                      className="min-h-[500px] space-y-3 rounded-2xl border border-dashed border-stone-200 bg-stone-100/50 p-3"
-                      onDragOver={event => event.preventDefault()}
-                      onDrop={event => {
-                        const taskId = event.dataTransfer.getData('text/task-id');
-                        if (taskId) moveTask(taskId, status);
-                      }}
-                    >
-                      {grouped[status].map(task => (
-                        <article
-                          key={task.id}
-                          draggable
-                          onDragStart={event => event.dataTransfer.setData('text/task-id', task.id)}
-                          className="cursor-pointer rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-                          onClick={() => openDrawer(task)}
+                    <div className="mt-4 space-y-2">
+                      {TASK_STATUSES.map(status => (
+                        <button
+                          key={status}
+                          type="button"
+                          onClick={() => {
+                            setSearchQuery('');
+                            setPageFilter('all');
+                            setReporterFilter('all');
+                          }}
+                          className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-left text-sm font-semibold text-stone-600 hover:bg-stone-50"
                         >
-                          {task.screenshot_url ? (
-                            <div className="relative h-32 overflow-hidden rounded-t-2xl bg-stone-100">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={task.screenshot_url} alt="" className="h-full w-full object-cover object-top" />
-                              <div
-                                className="task-pin absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-violet-600 shadow-lg"
-                                style={{
-                                  '--pin-left': `${Math.min(96, Math.max(4, (Number(task.x) / task.viewport_width) * 100))}%`,
-                                  '--pin-top': `${Math.min(92, Math.max(8, (Number(task.y) / task.viewport_height) * 100))}%`,
-                                } as React.CSSProperties}
-                              />
-                            </div>
-                          ) : (
-                            <div className="relative h-32 overflow-hidden rounded-t-2xl bg-gradient-to-br from-violet-50 to-stone-100">
-                              <div className="absolute left-3 right-3 top-3 truncate rounded-lg bg-white/80 px-2 py-1 text-[11px] font-semibold text-stone-500 shadow-sm">
-                                {task.page_path ?? task.page_url}
-                              </div>
-                              <div
-                                className="task-pin absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-violet-600 shadow-lg"
-                                style={{
-                                  '--pin-left': `${Math.min(96, Math.max(4, (Number(task.x) / task.viewport_width) * 100))}%`,
-                                  '--pin-top': `${Math.min(92, Math.max(20, (Number(task.y) / task.viewport_height) * 100))}%`,
-                                } as React.CSSProperties}
-                              />
-                            </div>
-                          )}
-                          <div className="p-3">
-                            <div className="mb-2 flex items-center justify-between gap-2">
-                              {task.reporter_name && (
-                                <span className="truncate rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-bold text-violet-700">{task.reporter_name}</span>
-                              )}
-                              <span className="ml-auto text-[11px] text-stone-400">{new Date(task.created_at).toLocaleDateString()}</span>
-                            </div>
-                            <p className="line-clamp-2 text-sm font-semibold text-stone-900">{task.comment ?? task.description ?? task.title}</p>
-                            <p className="mt-1 truncate text-xs text-stone-400">{task.page_path ?? task.page_url}</p>
-                          </div>
-                        </article>
+                          <span>{STATUS_LABELS[status]}</span>
+                          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-bold text-stone-500">{tasks.filter(task => task.status === status).length}</span>
+                        </button>
                       ))}
                     </div>
-                  </section>
-                ))}
+                  </div>
+
+                  <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Pages</p>
+                      <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-bold text-stone-500">{boardStats.pages}</span>
+                    </div>
+                    <div className="mt-3 space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => setPageFilter('all')}
+                        className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-sm ${pageFilter === 'all' ? 'bg-violet-50 font-bold text-violet-700' : 'text-stone-600 hover:bg-stone-50'}`}
+                      >
+                        <span>All pages</span>
+                        <span>{tasks.length}</span>
+                      </button>
+                      {pageOptions.slice(0, 8).map(page => (
+                        <button
+                          key={page}
+                          type="button"
+                          onClick={() => setPageFilter(page)}
+                          className={`flex w-full items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-sm ${pageFilter === page ? 'bg-violet-50 font-bold text-violet-700' : 'text-stone-600 hover:bg-stone-50'}`}
+                        >
+                          <span className="truncate">{page}</span>
+                          <span className="text-xs">{tasks.filter(task => (task.page_path || safePath(task.page_url)) === page).length}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
+                    <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Reporters</p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setReporterFilter('all')}
+                        className={`rounded-full px-3 py-1 text-xs font-bold ${reporterFilter === 'all' ? 'bg-violet-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
+                      >
+                        All
+                      </button>
+                      {reporterOptions.slice(0, 8).map(reporter => (
+                        <button
+                          key={reporter}
+                          type="button"
+                          onClick={() => setReporterFilter(reporter)}
+                          className={`max-w-full truncate rounded-full px-3 py-1 text-xs font-bold ${reporterFilter === reporter ? 'bg-violet-600 text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
+                        >
+                          {reporter}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </aside>
+
+                <div className="min-w-0">
+                  <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-3 shadow-sm md:flex-row md:items-center">
+                    <div className="relative flex-1">
+                      <input
+                        value={searchQuery}
+                        onChange={event => setSearchQuery(event.target.value)}
+                        placeholder="Search feedback, page, reporter, selector..."
+                        className="w-full rounded-xl border border-stone-200 bg-stone-50 px-4 py-2.5 pr-10 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg px-2 py-1 text-xs font-bold text-stone-400 hover:bg-stone-100 hover:text-stone-700"
+                          aria-label="Clear search"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </div>
+                    <select
+                      value={pageFilter}
+                      onChange={event => setPageFilter(event.target.value)}
+                      className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm font-semibold text-stone-700 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                      aria-label="Filter by page"
+                    >
+                      <option value="all">All pages</option>
+                      {pageOptions.map(page => <option key={page} value={page}>{page}</option>)}
+                    </select>
+                    <select
+                      value={reporterFilter}
+                      onChange={event => setReporterFilter(event.target.value)}
+                      className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm font-semibold text-stone-700 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                      aria-label="Filter by reporter"
+                    >
+                      <option value="all">All reporters</option>
+                      {reporterOptions.map(reporter => <option key={reporter} value={reporter}>{reporter}</option>)}
+                    </select>
+                    <span className="rounded-xl bg-stone-100 px-3 py-2.5 text-sm font-bold text-stone-500">
+                      {filteredTasks.length} shown
+                    </span>
+                  </div>
+
+                  <div className="flex gap-4 overflow-x-auto pb-6">
+                    {TASK_STATUSES.map(status => (
+                      <section key={status} className="min-h-[560px] w-[310px] flex-shrink-0 rounded-2xl bg-sky-50/70 p-3">
+                        <div className="mb-3 flex items-center justify-between px-1">
+                          <h2 className="text-sm font-black uppercase tracking-wide text-stone-700">{STATUS_LABELS[status]}</h2>
+                          <span className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-black text-stone-600">{grouped[status].length}</span>
+                        </div>
+                        <div
+                          className="min-h-[500px] space-y-3"
+                          onDragOver={event => event.preventDefault()}
+                          onDrop={event => {
+                            const taskId = event.dataTransfer.getData('text/task-id');
+                            if (taskId) moveTask(taskId, status);
+                          }}
+                        >
+                          {grouped[status].map(task => (
+                            <article
+                              key={task.id}
+                              draggable
+                              onDragStart={event => event.dataTransfer.setData('text/task-id', task.id)}
+                              className="group cursor-pointer rounded-xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                              onClick={() => openDrawer(task)}
+                            >
+                              {task.screenshot_url ? (
+                                <div className="relative h-28 overflow-hidden rounded-t-xl bg-stone-100">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={task.screenshot_url} alt="" className="h-full w-full object-cover object-top transition group-hover:scale-[1.02]" />
+                                  <div className="absolute left-2 top-2 rounded-lg bg-white/90 px-2 py-1 text-[11px] font-black text-stone-500 shadow-sm">#{shortId(task.id)}</div>
+                                  <div
+                                    className="task-pin absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-violet-600 shadow-lg"
+                                    style={{
+                                      '--pin-left': `${Math.min(96, Math.max(4, (Number(task.x) / task.viewport_width) * 100))}%`,
+                                      '--pin-top': `${Math.min(92, Math.max(8, (Number(task.y) / task.viewport_height) * 100))}%`,
+                                    } as React.CSSProperties}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="relative h-28 overflow-hidden rounded-t-xl bg-gradient-to-br from-violet-50 to-stone-100">
+                                  <div className="absolute left-2 top-2 rounded-lg bg-white/90 px-2 py-1 text-[11px] font-black text-stone-500 shadow-sm">#{shortId(task.id)}</div>
+                                  <div className="absolute left-3 right-3 top-10 truncate rounded-lg bg-white/80 px-2 py-1 text-[11px] font-semibold text-stone-500 shadow-sm">
+                                    {task.page_path ?? task.page_url}
+                                  </div>
+                                  <div
+                                    className="task-pin absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-violet-600 shadow-lg"
+                                    style={{
+                                      '--pin-left': `${Math.min(96, Math.max(4, (Number(task.x) / task.viewport_width) * 100))}%`,
+                                      '--pin-top': `${Math.min(92, Math.max(20, (Number(task.y) / task.viewport_height) * 100))}%`,
+                                    } as React.CSSProperties}
+                                  />
+                                </div>
+                              )}
+                              <div className="p-3">
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                  <span className="truncate rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-bold text-violet-700">{task.reporter_name || 'Anonymous'}</span>
+                                  <span className="ml-auto text-[11px] text-stone-400">{new Date(task.created_at).toLocaleDateString()}</span>
+                                </div>
+                                <p className="line-clamp-3 text-sm font-semibold leading-5 text-stone-900">{task.comment ?? task.description ?? task.title}</p>
+                                <p className="mt-2 truncate text-xs text-stone-400">{task.page_path ?? safePath(task.page_url)}</p>
+                                <div className="mt-3 flex items-center justify-between border-t border-stone-100 pt-2 text-[11px] font-bold text-stone-400">
+                                  <span>{task.attachment_url ? 'Attachment' : task.screenshot_url ? 'Screenshot' : 'Pin only'}</span>
+                                  <span>{task.element_text ? 'Element text' : 'Selector'}</span>
+                                </div>
+                              </div>
+                            </article>
+                          ))}
+                        </div>
+                      </section>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
           </>
@@ -708,6 +899,42 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                       {drawerTask.comment || drawerTask.description || 'No comment provided.'}
                     </p>
                   </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-stone-400">Details</p>
+                  <dl className="grid gap-2 rounded-xl border border-stone-100 bg-white px-4 py-3 text-xs">
+                    <div className="flex items-start justify-between gap-3">
+                      <dt className="font-bold uppercase tracking-wide text-stone-400">Task</dt>
+                      <dd className="font-mono text-stone-700">#{shortId(drawerTask.id)}</dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <dt className="font-bold uppercase tracking-wide text-stone-400">Created</dt>
+                      <dd className="text-right text-stone-700">{new Date(drawerTask.created_at).toLocaleString()}</dd>
+                    </div>
+                    <div className="flex items-start justify-between gap-3">
+                      <dt className="font-bold uppercase tracking-wide text-stone-400">Page</dt>
+                      <dd className="max-w-[70%] break-words text-right text-stone-700">{drawerTask.page_path || safePath(drawerTask.page_url)}</dd>
+                    </div>
+                    {drawerTask.selector && (
+                      <div className="flex items-start justify-between gap-3">
+                        <dt className="font-bold uppercase tracking-wide text-stone-400">Selector</dt>
+                        <dd className="max-w-[70%] break-words text-right font-mono text-[11px] text-stone-600">{drawerTask.selector}</dd>
+                      </div>
+                    )}
+                    {drawerTask.element_text && (
+                      <div className="flex items-start justify-between gap-3">
+                        <dt className="font-bold uppercase tracking-wide text-stone-400">Text</dt>
+                        <dd className="max-w-[70%] break-words text-right text-stone-700">{drawerTask.element_text}</dd>
+                      </div>
+                    )}
+                    {drawerTask.user_agent && (
+                      <div className="flex items-start justify-between gap-3">
+                        <dt className="font-bold uppercase tracking-wide text-stone-400">Browser</dt>
+                        <dd className="max-w-[70%] truncate text-right text-stone-500">{drawerTask.user_agent}</dd>
+                      </div>
+                    )}
+                  </dl>
                 </div>
 
                 {/* Attachment — shown below feedback as a downloadable file */}
