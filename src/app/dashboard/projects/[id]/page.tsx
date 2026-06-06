@@ -272,7 +272,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   }
 
   return (
-    <main className="min-h-screen bg-stone-50 text-stone-900">
+    <main className="kaze-workspace min-h-screen bg-stone-50 text-stone-900">
       <header className="sticky top-0 z-20 border-b border-stone-200 bg-white">
         <div className="mx-auto flex max-w-screen-2xl flex-col gap-2 px-5 py-4 md:flex-row md:items-center md:justify-between">
           <div>
@@ -498,7 +498,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                     </span>
                   </div>
 
-                  <div className="flex gap-4 overflow-x-auto pb-6">
+                  <div className="kaze-board flex gap-4 overflow-x-auto pb-6">
                     {TASK_STATUSES.map(status => (
                       <section key={status} className="min-h-[560px] w-[310px] flex-shrink-0 rounded-2xl bg-sky-50/70 p-3">
                         <div className="mb-3 flex items-center justify-between px-1">

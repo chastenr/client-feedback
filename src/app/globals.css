@@ -6,3 +6,133 @@
   left: var(--pin-left);
   top: var(--pin-top);
 }
+
+.kaze-workspace {
+  background:
+    radial-gradient(circle at top left, rgba(96, 165, 250, 0.22), transparent 34rem),
+    linear-gradient(180deg, #eef7ff 0%, #f7fbff 20rem, #f8fafc 100%);
+  color: #223044;
+}
+
+.kaze-workspace header {
+  background: rgba(255, 255, 255, 0.86);
+  border-color: rgba(147, 197, 253, 0.36);
+  box-shadow: 0 10px 32px rgba(37, 99, 235, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.kaze-workspace .bg-white {
+  background-color: rgba(255, 255, 255, 0.94);
+}
+
+.kaze-workspace .bg-stone-50 {
+  background-color: #f5f9ff;
+}
+
+.kaze-workspace .border-stone-200,
+.kaze-workspace .border-stone-100 {
+  border-color: rgba(191, 219, 254, 0.72);
+}
+
+.kaze-workspace .shadow-sm {
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.07);
+}
+
+.kaze-workspace .text-stone-900,
+.kaze-workspace .text-stone-800,
+.kaze-workspace .text-stone-700 {
+  color: #223044;
+}
+
+.kaze-workspace .text-stone-500,
+.kaze-workspace .text-stone-400 {
+  color: #66758a;
+}
+
+.kaze-workspace .bg-violet-600,
+.kaze-workspace .bg-stone-900 {
+  background-color: #3478f6;
+}
+
+.kaze-workspace .hover\:bg-violet-700:hover,
+.kaze-workspace .hover\:bg-stone-700:hover {
+  background-color: #1d64df;
+}
+
+.kaze-workspace .text-violet-600,
+.kaze-workspace .text-violet-700,
+.kaze-workspace .hover\:text-violet-800:hover {
+  color: #2468df;
+}
+
+.kaze-workspace .border-violet-600 {
+  border-color: #3478f6;
+}
+
+.kaze-workspace .bg-violet-50 {
+  background-color: #eaf3ff;
+}
+
+.kaze-workspace .text-violet-700,
+.kaze-workspace .text-violet-800,
+.kaze-workspace .text-violet-900 {
+  color: #1f5fcf;
+}
+
+.kaze-workspace input,
+.kaze-workspace select,
+.kaze-workspace textarea {
+  border-color: rgba(147, 197, 253, 0.66);
+  background-color: #fbfdff;
+}
+
+.kaze-workspace input:focus,
+.kaze-workspace select:focus,
+.kaze-workspace textarea:focus {
+  border-color: #3478f6;
+  box-shadow: 0 0 0 3px rgba(52, 120, 246, 0.14);
+}
+
+.kaze-workspace aside > div,
+.kaze-workspace .rounded-2xl {
+  border-radius: 18px;
+}
+
+.kaze-workspace .kaze-board > section {
+  border: 1px solid rgba(147, 197, 253, 0.42);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.72);
+}
+
+.kaze-workspace .kaze-board > section:nth-child(1) {
+  background: linear-gradient(180deg, #e8f3ff 0%, #f3f9ff 100%);
+}
+
+.kaze-workspace .kaze-board > section:nth-child(2) {
+  background: linear-gradient(180deg, #eef7f4 0%, #f7fbf8 100%);
+}
+
+.kaze-workspace .kaze-board > section:nth-child(3) {
+  background: linear-gradient(180deg, #fff7e8 0%, #fffaf1 100%);
+}
+
+.kaze-workspace .kaze-board > section:nth-child(4) {
+  background: linear-gradient(180deg, #f2efff 0%, #faf8ff 100%);
+}
+
+.kaze-workspace .kaze-board > section:nth-child(5) {
+  background: linear-gradient(180deg, #edfdf4 0%, #f8fffb 100%);
+}
+
+.kaze-workspace .kaze-board article {
+  border-color: rgba(148, 163, 184, 0.22);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+}
+
+.kaze-workspace .kaze-board article:hover {
+  box-shadow: 0 16px 34px rgba(37, 99, 235, 0.16);
+}
+
+.kaze-workspace .task-pin {
+  background-color: #3478f6;
+  box-shadow: 0 8px 22px rgba(52, 120, 246, 0.45);
+}
