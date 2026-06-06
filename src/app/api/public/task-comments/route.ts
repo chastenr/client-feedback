@@ -51,13 +51,14 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const taskId = typeof body?.task_id === 'string' ? body.task_id : '';
   const message = typeof body?.message === 'string' ? body.message.trim() : '';
+  const authorName = typeof body?.author_name === 'string' ? body.author_name.trim() || null : null;
 
   if (!taskId || !message) {
     return NextResponse.json({ error: 'task_id and message are required.' }, { status: 400, headers: cors });
   }
 
   if (isLocalMode()) {
-    const comment = await createLocalComment(taskId, message);
+    const comment = await createLocalComment(taskId, message, authorName);
     if (!comment) return NextResponse.json({ error: 'Task not found.' }, { status: 404, headers: cors });
     return NextResponse.json({ comment }, { status: 201, headers: cors });
   }
@@ -74,7 +75,7 @@ export async function POST(request: Request) {
 
   const { data: comment, error } = await supabase
     .from('task_comments')
-    .insert({ task_id: taskId, user_id: null, message })
+    .insert({ task_id: taskId, user_id: null, author_name: authorName, message })
     .select('*')
     .single();
 

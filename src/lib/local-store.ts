@@ -193,13 +193,14 @@ export async function updateLocalTask(id: string, updates: { status?: TaskStatus
   return withProject(db.tasks[index], project);
 }
 
-export async function createLocalComment(taskId: string, message: string) {
+export async function createLocalComment(taskId: string, message: string, authorName?: string | null) {
   const db = await readDb();
   if (!db.tasks.some(task => task.id === taskId)) return null;
   const comment: TaskComment = {
     id: crypto.randomUUID(),
     task_id: taskId,
     user_id: null,
+    author_name: authorName ?? null,
     message,
     created_at: new Date().toISOString(),
   };

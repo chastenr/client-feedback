@@ -22,6 +22,9 @@ export default function HomePage() {
             <Link href="/login" className="rounded-xl bg-violet-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-violet-700">
               Admin login
             </Link>
+            <Link href="/client/login" className="rounded-xl border border-stone-200 bg-white px-5 py-2.5 text-sm font-bold text-stone-700 shadow-sm hover:bg-stone-100">
+              Client login
+            </Link>
           </div>
         </div>
 

@@ -73,6 +73,7 @@ export interface TaskComment {
   id: string;
   task_id: string;
   user_id: string | null;
+  author_name: string | null;
   message: string;
   created_at: string;
 }

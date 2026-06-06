@@ -265,40 +265,47 @@
       '<div class="panel-thread"><div class="panel-loading">Loading comments…</div></div>',
       '</div>',
       '<div class="panel-footer">',
-      '<input class="panel-input" type="text" placeholder="Add a comment…" maxlength="2000">',
+      '<div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:0">',
+      '<input class="panel-input panel-name" type="text" placeholder="Your name (optional)" maxlength="120" style="font-size:11px;padding:6px 10px">',
+      '<div style="display:flex;gap:6px">',
+      '<input class="panel-input panel-message" type="text" placeholder="Add a comment…" maxlength="2000">',
       '<button class="panel-send" type="button">Send</button>',
+      '</div>',
+      '</div>',
       '</div>',
     ].join('');
 
     panel.querySelector('.panel-close').addEventListener('click', closePanel);
 
     var threadEl = panel.querySelector('.panel-thread');
-    var inputEl = panel.querySelector('.panel-input');
+    var nameEl = panel.querySelector('.panel-name');
+    var messageEl = panel.querySelector('.panel-message');
     var sendBtn = panel.querySelector('.panel-send');
 
     if (task.id) {
       fetchPanelComments(task.id, threadEl);
       sendBtn.addEventListener('click', function () {
-        var msg = inputEl.value.trim();
+        var msg = messageEl.value.trim();
+        var authorName = nameEl.value.trim() || null;
         if (!msg) return;
         sendBtn.disabled = true;
         fetch(appOrigin + '/api/public/task-comments', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ task_id: task.id, message: msg }),
+          body: JSON.stringify({ task_id: task.id, message: msg, author_name: authorName }),
           mode: 'cors',
         })
           .then(function (r) { return r.json(); })
           .then(function (data) {
             if (data.comment) {
               appendPanelComment(threadEl, data.comment);
-              inputEl.value = '';
+              messageEl.value = '';
             }
             sendBtn.disabled = false;
           })
           .catch(function () { sendBtn.disabled = false; });
       });
-      inputEl.addEventListener('keydown', function (e) {
+      messageEl.addEventListener('keydown', function (e) {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendBtn.click(); }
       });
     } else {
@@ -343,8 +350,9 @@
   function appendPanelComment(threadEl, c) {
     var el = document.createElement('div');
     el.className = 'panel-msg';
+    var name = c.author_name ? escapeHtml(c.author_name) : 'Anonymous';
     var time = c.created_at ? new Date(c.created_at).toLocaleString() : '';
-    el.innerHTML = '<p class="panel-msg-text">' + escapeHtml(c.message) + '</p><p class="panel-msg-time">' + escapeHtml(time) + '</p>';
+    el.innerHTML = '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px"><span style="font-size:11px;font-weight:700;color:#1c1917">' + name + '</span><span class="panel-msg-time" style="margin-top:0">' + escapeHtml(time) + '</span></div><p class="panel-msg-text">' + escapeHtml(c.message) + '</p>';
     threadEl.appendChild(el);
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }

@@ -23,6 +23,11 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [copiedSnippet, setCopiedSnippet] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
+  const [clientEmail, setClientEmail] = useState('');
+  const [clientPassword, setClientPassword] = useState('');
+  const [clientFullName, setClientFullName] = useState('');
+  const [clientAccessMessage, setClientAccessMessage] = useState('');
+  const [clientAccessSaving, setClientAccessSaving] = useState(false);
 
   // Drawer state
   const [drawerTask, setDrawerTask] = useState<FeedbackTask | null>(null);
@@ -132,6 +137,34 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     await navigator.clipboard.writeText(getSnippet());
     setCopiedSnippet(true);
     setTimeout(() => setCopiedSnippet(false), 1600);
+  }
+
+  async function createClientAccess(event: React.FormEvent) {
+    event.preventDefault();
+    if (!project) return;
+    setClientAccessSaving(true);
+    setClientAccessMessage('');
+    setError('');
+
+    const response = await dashboardFetch(`/api/projects/${project.id}/client-access`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: clientEmail,
+        password: clientPassword,
+        fullName: clientFullName || null,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setClientAccessSaving(false);
+
+    if (!response.ok) {
+      setError(data.error ?? 'Unable to create client access.');
+      return;
+    }
+
+    setClientAccessMessage(`Client account ready for ${data.client?.email ?? clientEmail}. Send them the client login and password.`);
+    setClientPassword('');
   }
 
   const isInstalled = Boolean(project?.widget_last_seen_at);
@@ -442,6 +475,66 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                 </div>
               </dl>
             </div>
+
+            <div className="mt-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-black text-stone-900">Client account</h2>
+              <p className="mt-1 text-sm leading-6 text-stone-500">
+                Create a login for this client. They will only see this website in the client portal.
+              </p>
+
+              <form onSubmit={createClientAccess} className="mt-5 space-y-4">
+                <label className="block text-sm font-semibold text-stone-700">
+                  Client name
+                  <input
+                    value={clientFullName}
+                    onChange={event => setClientFullName(event.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                    placeholder={project.client_name || 'Client name'}
+                  />
+                </label>
+
+                <label className="block text-sm font-semibold text-stone-700">
+                  Client email <span className="text-red-500">*</span>
+                  <input
+                    value={clientEmail}
+                    onChange={event => setClientEmail(event.target.value)}
+                    type="email"
+                    required
+                    className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                    placeholder="client@example.com"
+                  />
+                </label>
+
+                <label className="block text-sm font-semibold text-stone-700">
+                  Temporary password <span className="text-red-500">*</span>
+                  <input
+                    value={clientPassword}
+                    onChange={event => setClientPassword(event.target.value)}
+                    type="password"
+                    required
+                    minLength={6}
+                    className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                    placeholder="Minimum 6 characters"
+                  />
+                </label>
+
+                {clientAccessMessage && (
+                  <p className="rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">{clientAccessMessage}</p>
+                )}
+
+                <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
+                  Client login URL: <span className="font-mono text-xs">{typeof window !== 'undefined' ? `${window.location.origin}/client/login` : '/client/login'}</span>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={clientAccessSaving}
+                  className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60"
+                >
+                  {clientAccessSaving ? 'Saving...' : 'Create client access'}
+                </button>
+              </form>
+            </div>
           </div>
         )}
       </div>
@@ -597,8 +690,11 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                     <div className="space-y-2">
                       {drawerComments.map(c => (
                         <div key={c.id} className="rounded-xl bg-stone-50 px-4 py-3">
+                          <div className="mb-1 flex items-center gap-2">
+                            <span className="text-xs font-bold text-stone-700">{c.author_name || 'Anonymous'}</span>
+                            <span className="text-xs text-stone-400">{new Date(c.created_at).toLocaleString()}</span>
+                          </div>
                           <p className="text-sm text-stone-800">{c.message}</p>
-                          <p className="mt-1 text-xs text-stone-400">{new Date(c.created_at).toLocaleString()}</p>
                         </div>
                       ))}
                     </div>

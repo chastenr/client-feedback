@@ -13,7 +13,7 @@ export async function POST(
   if (!parsed.success) return jsonError('Invalid comment.', 422);
 
   if (isLocalMode()) {
-    const comment = await createLocalComment(params.id, parsed.data.message);
+    const comment = await createLocalComment(params.id, parsed.data.message, 'Admin');
     if (!comment) return jsonError('Task not found.', 404);
     return NextResponse.json({ comment, localMode: true }, { status: 201 });
   }
@@ -26,6 +26,7 @@ export async function POST(
     .insert({
       task_id: params.id,
       user_id: result.user?.id ?? null,
+      author_name: 'Admin',
       message: parsed.data.message,
     })
     .select('*')

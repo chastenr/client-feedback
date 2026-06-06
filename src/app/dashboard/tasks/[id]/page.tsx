@@ -160,8 +160,11 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
             <div className="space-y-3">
               {comments.map(item => (
                 <div key={item.id} className="rounded-xl bg-stone-50 px-4 py-3">
+                  <div className="mb-1 flex items-center gap-2">
+                    <span className="text-xs font-bold text-stone-700">{item.author_name || 'Anonymous'}</span>
+                    <span className="text-xs text-stone-400">{new Date(item.created_at).toLocaleString()}</span>
+                  </div>
                   <p className="text-sm text-stone-800">{item.message}</p>
-                  <p className="mt-1 text-xs text-stone-400">{new Date(item.created_at).toLocaleString()}</p>
                 </div>
               ))}
               {comments.length === 0 && <p className="text-sm text-stone-400">No discussion comments yet.</p>}

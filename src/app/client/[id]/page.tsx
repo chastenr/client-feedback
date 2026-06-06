@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 interface ReviewProject {
   id: string;
@@ -15,20 +16,38 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetch(`/api/public/review/${params.id}`)
-      .then(async response => {
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error ?? 'Review link not found.');
-        setProject(data.project);
+    async function load() {
+      const supabase = createBrowserSupabaseClient();
+      if (!supabase) {
+        setError('Client login is not configured yet.');
+        return;
+      }
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        window.location.href = `/client/login?next=${encodeURIComponent(`/client/${params.id}`)}`;
+        return;
+      }
+
+      fetch(`/api/client/projects/${params.id}`, {
+        headers: { Authorization: `Bearer ${sessionData.session.access_token}` },
       })
-      .catch(err => setError(err.message));
+        .then(async response => {
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error(data.error ?? 'Client project not found.');
+          setProject(data.project);
+        })
+        .catch(err => setError(err.message));
+    }
+
+    load();
   }, [params.id]);
 
   if (error) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-stone-50 p-4">
         <div className="w-full max-w-md rounded-2xl border border-red-100 bg-white p-6 shadow-sm">
-          <h1 className="text-lg font-black text-stone-900">Link unavailable</h1>
+          <h1 className="text-lg font-black text-stone-900">Client access unavailable</h1>
           <p className="mt-2 text-sm text-red-600">{error}</p>
         </div>
       </main>
