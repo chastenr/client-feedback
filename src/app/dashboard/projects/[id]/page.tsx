@@ -14,9 +14,35 @@ import { dashboardFetch } from '@/lib/api/client';
 
 type Tab = 'tasks' | 'install' | 'settings';
 
+interface ProjectMember {
+  id: string;
+  user_id: string;
+  role: 'owner' | 'admin' | 'member' | 'viewer';
+  created_at: string;
+  profiles?: {
+    id?: string;
+    email?: string | null;
+    full_name?: string | null;
+    username?: string | null;
+  } | {
+    id?: string;
+    email?: string | null;
+    full_name?: string | null;
+    username?: string | null;
+  }[] | null;
+}
+
+const MEMBER_ROLE_LABELS: Record<ProjectMember['role'], string> = {
+  owner: 'Owner',
+  admin: 'Admin',
+  member: 'Editor',
+  viewer: 'Viewer',
+};
+
 export default function ProjectBoardPage({ params }: { params: { id: string } }) {
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<FeedbackTask[]>([]);
+  const [members, setMembers] = useState<ProjectMember[]>([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [copiedReviewLink, setCopiedReviewLink] = useState(false);
@@ -33,6 +59,12 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [clientAccessMessage, setClientAccessMessage] = useState('');
   const [clientAccessError, setClientAccessError] = useState('');
   const [clientAccessSaving, setClientAccessSaving] = useState(false);
+  const [memberEmail, setMemberEmail] = useState('');
+  const [memberFullName, setMemberFullName] = useState('');
+  const [memberRole, setMemberRole] = useState<'admin' | 'member' | 'viewer'>('member');
+  const [memberMessage, setMemberMessage] = useState('');
+  const [memberError, setMemberError] = useState('');
+  const [memberSaving, setMemberSaving] = useState(false);
 
   // Drawer state
   const [drawerTask, setDrawerTask] = useState<FeedbackTask | null>(null);
@@ -48,16 +80,19 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const load = useCallback(async () => {
     setLoading(true);
     setError('');
-    const [projectResponse, tasksResponse] = await Promise.all([
+    const [projectResponse, tasksResponse, membersResponse] = await Promise.all([
       dashboardFetch(`/api/projects/${params.id}`),
       dashboardFetch(`/api/projects/${params.id}/tasks`),
+      dashboardFetch(`/api/projects/${params.id}/members`),
     ]);
     const projectData = await projectResponse.json().catch(() => ({}));
     const tasksData = await tasksResponse.json().catch(() => ({}));
+    const membersData = await membersResponse.json().catch(() => ({}));
     if (!projectResponse.ok) setError(projectData.error ?? 'Unable to load project.');
     else setProject(projectData.project);
     if (!tasksResponse.ok) setError(tasksData.error ?? 'Unable to load tasks.');
     else setTasks(tasksData.tasks ?? []);
+    if (membersResponse.ok) setMembers(membersData.members ?? []);
     setLoading(false);
   }, [params.id]);
 
@@ -210,6 +245,56 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     const loginName = data.client?.username || data.client?.email || clientEmail;
     setClientAccessMessage(`Client account ready for ${loginName}. Send them the client login and password.`);
     setClientPassword('');
+  }
+
+  async function inviteMember(event: React.FormEvent) {
+    event.preventDefault();
+    if (!project) return;
+    setMemberSaving(true);
+    setMemberMessage('');
+    setMemberError('');
+
+    const response = await dashboardFetch(`/api/projects/${project.id}/members`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: memberEmail,
+        fullName: memberFullName || null,
+        role: memberRole,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setMemberSaving(false);
+
+    if (!response.ok) {
+      setMemberError(data.error ?? 'Unable to add member.');
+      return;
+    }
+
+    setMembers(prev => {
+      const next = prev.filter(member => member.id !== data.member.id);
+      return [...next, data.member];
+    });
+    setMemberMessage(data.invited ? `Invite sent to ${memberEmail}.` : `${memberEmail} can now access this project.`);
+    setMemberEmail('');
+    setMemberFullName('');
+  }
+
+  async function removeMember(memberId: string) {
+    if (!project) return;
+    const response = await dashboardFetch(`/api/projects/${project.id}/members/${memberId}`, {
+      method: 'DELETE',
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      setMemberError(data.error ?? 'Unable to remove member.');
+      return;
+    }
+    setMembers(prev => prev.filter(member => member.id !== memberId));
+  }
+
+  function memberProfile(member: ProjectMember) {
+    return Array.isArray(member.profiles) ? member.profiles[0] : member.profiles;
   }
 
   const isInstalled = Boolean(project?.widget_last_seen_at);
@@ -644,7 +729,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
         )}
 
         {activeTab === 'settings' && project && (
-          <div className="mx-auto max-w-xl">
+          <div className="mx-auto max-w-3xl">
             <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-black text-stone-900">Project settings</h2>
               <dl className="mt-5 space-y-4 text-sm">
@@ -677,6 +762,110 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                   <dd className="mt-0.5 text-stone-900">{new Date(project.created_at).toLocaleDateString()}</dd>
                 </div>
               </dl>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h2 className="text-lg font-black text-stone-900">Members</h2>
+                  <p className="mt-1 text-sm leading-6 text-stone-500">
+                    Add admins, developers, editors, or viewers for this project only.
+                  </p>
+                </div>
+                <span className="w-fit rounded-full bg-sky-50 px-3 py-1 text-xs font-bold text-sky-700">
+                  {members.length} people
+                </span>
+              </div>
+
+              <form onSubmit={inviteMember} className="mt-5 grid gap-3 md:grid-cols-[1fr_1fr_150px_auto]">
+                <label className="block text-sm font-semibold text-stone-700">
+                  Email
+                  <input
+                    value={memberEmail}
+                    onChange={event => setMemberEmail(event.target.value)}
+                    type="email"
+                    required
+                    className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                    placeholder="developer@example.com"
+                  />
+                </label>
+
+                <label className="block text-sm font-semibold text-stone-700">
+                  Name
+                  <input
+                    value={memberFullName}
+                    onChange={event => setMemberFullName(event.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                    placeholder="Optional"
+                  />
+                </label>
+
+                <label className="block text-sm font-semibold text-stone-700">
+                  Role
+                  <select
+                    value={memberRole}
+                    onChange={event => setMemberRole(event.target.value as 'admin' | 'member' | 'viewer')}
+                    className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                  >
+                    <option value="member">Editor</option>
+                    <option value="admin">Admin</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                </label>
+
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={memberSaving}
+                    className="w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60"
+                  >
+                    {memberSaving ? 'Adding...' : 'Add'}
+                  </button>
+                </div>
+              </form>
+
+              <div className="mt-3 grid gap-2 text-xs text-stone-500 sm:grid-cols-3">
+                <p className="rounded-xl bg-stone-50 px-3 py-2"><strong className="text-stone-700">Admin:</strong> manage this project and tasks.</p>
+                <p className="rounded-xl bg-stone-50 px-3 py-2"><strong className="text-stone-700">Editor:</strong> update tasks and leave comments.</p>
+                <p className="rounded-xl bg-stone-50 px-3 py-2"><strong className="text-stone-700">Viewer:</strong> client-style access for review.</p>
+              </div>
+
+              {memberMessage && (
+                <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">{memberMessage}</p>
+              )}
+              {memberError && (
+                <p className="mt-4 rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{memberError}</p>
+              )}
+
+              <div className="mt-5 divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white">
+                {members.length === 0 ? (
+                  <p className="px-4 py-5 text-sm text-stone-400">No members added yet.</p>
+                ) : members.map(member => {
+                  const profile = memberProfile(member);
+                  const displayName = profile?.full_name || profile?.username || profile?.email || 'Unknown user';
+                  return (
+                    <div key={member.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="truncate text-sm font-bold text-stone-900">{displayName}</p>
+                          <span className="rounded-full bg-stone-100 px-2 py-0.5 text-xs font-bold text-stone-600">
+                            {MEMBER_ROLE_LABELS[member.role]}
+                          </span>
+                        </div>
+                        <p className="mt-0.5 truncate text-xs text-stone-400">{profile?.email || member.user_id}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeMember(member.id)}
+                        disabled={member.role === 'owner'}
+                        className="w-fit rounded-xl border border-red-100 px-3 py-2 text-xs font-bold text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="mt-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">

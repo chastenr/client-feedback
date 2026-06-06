@@ -57,6 +57,12 @@ export const clientAccessSchema = z.object({
   fullName: z.string().trim().max(140).optional().nullable(),
 });
 
+export const projectMemberSchema = z.object({
+  email: z.string().trim().email().max(180),
+  fullName: z.string().trim().max(140).optional().nullable(),
+  role: z.enum(['admin', 'member', 'viewer']).default('member'),
+});
+
 export const widgetFeedbackSchema = z.object({
   project_id: z.string().min(8),
   comment: z.string().trim().min(1).max(5000),
