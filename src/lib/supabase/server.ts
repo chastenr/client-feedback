@@ -61,7 +61,9 @@ export function getAdminClient(request: Request): { client: SupabaseClient; mode
   const token = getBearerToken(request);
   if (token) return { client: createUserClient(token), mode: 'user' };
 
-  if (process.env.ALLOW_UNAUTHENTICATED_ADMIN === 'true') {
+  // Use service role when auth is not configured (anon key absent) or explicitly bypassed.
+  const authConfigured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+  if (!authConfigured || process.env.ALLOW_UNAUTHENTICATED_ADMIN === 'true') {
     return { client: createServiceClient(), mode: 'service-dev' };
   }
 

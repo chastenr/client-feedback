@@ -5,6 +5,10 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
+const authEnabled = Boolean(
+  process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+);
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
@@ -19,7 +23,7 @@ export default function LoginPage() {
     setError('');
     const supabase = createBrowserSupabaseClient();
     if (!supabase) {
-      setError('Missing Supabase configuration.');
+      setError('Missing NEXT_PUBLIC_SUPABASE_ANON_KEY — add it in Vercel → Settings → Environment Variables, then redeploy.');
       return;
     }
 
@@ -39,6 +43,32 @@ export default function LoginPage() {
     }
 
     router.push('/dashboard');
+  }
+
+  if (!authEnabled) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-stone-50 px-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-violet-600 text-lg font-black text-white shadow-sm">
+            K
+          </div>
+          <h1 className="text-xl font-black text-stone-900">Kaze Snippet</h1>
+          <div className="mt-6 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+            <p className="text-sm font-semibold text-stone-700">Authentication not configured</p>
+            <p className="mt-2 text-sm text-stone-500">
+              <code className="rounded bg-stone-100 px-1.5 py-0.5 text-xs font-mono">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> is not set, so login is disabled.
+              The dashboard is accessible directly.
+            </p>
+            <Link
+              href="/dashboard"
+              className="mt-5 flex items-center justify-center rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-violet-700"
+            >
+              Go to dashboard
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
   }
 
   return (
