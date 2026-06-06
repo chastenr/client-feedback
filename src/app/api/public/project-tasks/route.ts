@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 
   const { data } = await supabase
     .from('feedback_tasks')
-    .select('id,x,y,scroll_x,scroll_y,viewport_width,viewport_height,page_path,page_url,comment,description,reporter_name,status')
+    .select('id,x,y,scroll_x,scroll_y,viewport_width,viewport_height,page_path,page_url,selector,element_offset_x,element_offset_y,element_width,element_height,comment,description,reporter_name,status')
     .eq('project_id', project.id)
     .order('created_at', { ascending: true });
 
@@ -63,6 +63,11 @@ interface ProjectTaskRow {
   viewport_height?: unknown;
   page_path?: unknown;
   page_url?: unknown;
+  selector?: unknown;
+  element_offset_x?: unknown;
+  element_offset_y?: unknown;
+  element_width?: unknown;
+  element_height?: unknown;
   comment?: unknown;
   description?: unknown;
   reporter_name?: unknown;
@@ -80,6 +85,11 @@ function miniTask(t: ProjectTaskRow) {
     viewport_height: t.viewport_height,
     page_path: t.page_path,
     page_url: t.page_url,
+    selector: t.selector,
+    element_offset_x: t.element_offset_x,
+    element_offset_y: t.element_offset_y,
+    element_width: t.element_width,
+    element_height: t.element_height,
     comment: t.comment || t.description,
     reporter_name: t.reporter_name,
     status: t.status,

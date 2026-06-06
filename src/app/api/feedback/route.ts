@@ -37,7 +37,28 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid feedback payload.', details: parsed.error.flatten() }, { status: 422, headers: corsHeaders });
   }
 
-  const { project_id, comment, reporter_name, reporter_email, page_url, page_path, selector, element_text, x, y, scroll_x, scroll_y, viewport_width, viewport_height, user_agent, screenshot } = parsed.data;
+  const {
+    project_id,
+    comment,
+    reporter_name,
+    reporter_email,
+    page_url,
+    page_path,
+    selector,
+    element_text,
+    x,
+    y,
+    element_offset_x,
+    element_offset_y,
+    element_width,
+    element_height,
+    scroll_x,
+    scroll_y,
+    viewport_width,
+    viewport_height,
+    user_agent,
+    screenshot,
+  } = parsed.data;
 
   const title = comment.slice(0, 80) + (comment.length > 80 ? '…' : '');
 
@@ -57,10 +78,10 @@ export async function POST(request: Request) {
       elementText: element_text ?? null,
       x,
       y,
-      elementOffsetX: null,
-      elementOffsetY: null,
-      elementWidth: null,
-      elementHeight: null,
+      elementOffsetX: element_offset_x ?? null,
+      elementOffsetY: element_offset_y ?? null,
+      elementWidth: element_width ?? null,
+      elementHeight: element_height ?? null,
       scrollX: scroll_x,
       scrollY: scroll_y,
       viewportWidth: viewport_width,
@@ -146,10 +167,10 @@ export async function POST(request: Request) {
       element_text: element_text ?? null,
       x,
       y,
-      element_offset_x: null,
-      element_offset_y: null,
-      element_width: null,
-      element_height: null,
+      element_offset_x: element_offset_x ?? null,
+      element_offset_y: element_offset_y ?? null,
+      element_width: element_width ?? null,
+      element_height: element_height ?? null,
       scroll_x,
       scroll_y,
       viewport_width,
