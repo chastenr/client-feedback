@@ -158,6 +158,10 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     ? Math.min(100, Math.max(0, (Number(drawerTask.y) / drawerTask.viewport_height) * 100))
     : 50;
 
+  function isVideoUrl(url: string) {
+    return /\.(mp4|webm|mov)(\?|$)/i.test(url);
+  }
+
   function getPageUrl() {
     if (!drawerTask) return '#';
     try {
@@ -483,11 +487,13 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
             {/* Drawer body */}
             <div className="flex-1 overflow-y-auto">
               <div className="p-5 space-y-5">
-                {/* Screenshot / pin preview */}
+                {/* Screenshot / attachment preview */}
                 <div>
                   <div className="mb-2 flex items-center justify-between">
-                    <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Screenshot</p>
-                    {drawerTask.screenshot_url && (
+                    <p className="text-xs font-bold uppercase tracking-widest text-stone-400">
+                      {drawerTask.screenshot_url && isVideoUrl(drawerTask.screenshot_url) ? 'Video attachment' : 'Screenshot'}
+                    </p>
+                    {drawerTask.screenshot_url && !isVideoUrl(drawerTask.screenshot_url) && (
                       <button
                         type="button"
                         onClick={() => setLightbox(true)}
@@ -497,7 +503,16 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                       </button>
                     )}
                   </div>
-                  {drawerTask.screenshot_url ? (
+                  {drawerTask.screenshot_url && isVideoUrl(drawerTask.screenshot_url) ? (
+                    <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-950">
+                      <video
+                        src={drawerTask.screenshot_url}
+                        controls
+                        className="block w-full max-h-[420px]"
+                        preload="metadata"
+                      />
+                    </div>
+                  ) : drawerTask.screenshot_url ? (
                     <div
                       ref={screenshotScrollRef}
                       className="max-h-[420px] overflow-y-auto overflow-x-hidden rounded-xl border border-stone-200 bg-stone-100 cursor-zoom-in"

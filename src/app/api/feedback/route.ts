@@ -58,6 +58,7 @@ export async function POST(request: Request) {
     viewport_height,
     user_agent,
     screenshot,
+    attachment_url,
   } = parsed.data;
 
   const title = comment.slice(0, 80) + (comment.length > 80 ? '…' : '');
@@ -135,8 +136,9 @@ export async function POST(request: Request) {
     }
   }
 
-  let screenshotUrl: string | null = screenshot ?? null;
-  if (screenshot) {
+  // attachment_url is a pre-uploaded file URL (used for video/large files uploaded via /api/public/upload)
+  let screenshotUrl: string | null = attachment_url ?? screenshot ?? null;
+  if (!attachment_url && screenshot) {
     const image = dataUrlToBuffer(screenshot);
     if (image) {
       const ext = extensionFromType(image.contentType);

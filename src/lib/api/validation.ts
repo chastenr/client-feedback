@@ -50,6 +50,12 @@ export const createProjectSchema = z.object({
   allowedOrigin: z.string().trim().max(2048).optional().nullable(),
 });
 
+export const clientAccessSchema = z.object({
+  email: z.string().trim().email().max(180),
+  password: z.string().min(6).max(120),
+  fullName: z.string().trim().max(140).optional().nullable(),
+});
+
 export const widgetFeedbackSchema = z.object({
   project_id: z.string().min(8),
   comment: z.string().trim().min(1).max(5000),
@@ -71,6 +77,7 @@ export const widgetFeedbackSchema = z.object({
   viewport_height: z.number().int().positive().max(10000),
   user_agent: z.string().trim().max(1200).optional().nullable(),
   screenshot: base64Image,
+  attachment_url: z.string().url().max(2048).optional().nullable(),
 });
 
 export const updateTaskSchema = z.object({

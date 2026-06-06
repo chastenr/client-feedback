@@ -85,6 +85,8 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
     return <main className="min-h-screen bg-stone-50 p-6 text-sm text-stone-400">Loading task…</main>;
   }
 
+  const isVideo = Boolean(task.screenshot_url && /\.(mp4|webm|mov)(\?|$)/i.test(task.screenshot_url));
+
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
       <header className="border-b border-stone-200 bg-white">
@@ -112,8 +114,14 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
       <div className="mx-auto grid max-w-6xl gap-5 px-5 py-6 lg:grid-cols-[1fr_320px]">
         <section className="space-y-5">
           <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
-            <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-stone-400">Screenshot / Pin preview</h2>
-            {task.screenshot_url ? (
+            <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-stone-400">
+              {isVideo ? 'Video attachment' : 'Screenshot / Pin preview'}
+            </h2>
+            {isVideo ? (
+              <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-950">
+                <video src={task.screenshot_url!} controls className="block w-full max-h-[520px]" preload="metadata" />
+              </div>
+            ) : task.screenshot_url ? (
               <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-100">
                 <div className="relative">
                   {/* eslint-disable-next-line @next/next/no-img-element */}

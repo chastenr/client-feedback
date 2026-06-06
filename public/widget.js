@@ -42,7 +42,7 @@
   try { sessionStorage.setItem('kaze_review', '1'); } catch (_) {}
 
   // ─── State ─────────────────────────────────────────────────────────────────
-  var state = { active: false, selected: null, hoverEl: null, pinCount: 0 };
+  var state = { active: false, selected: null, hoverEl: null, pinCount: 0, attachedFile: null };
 
   // ─── Shadow DOM ────────────────────────────────────────────────────────────
   var host = document.createElement('div');
@@ -97,6 +97,17 @@
     '.submit{border:0;background:#7c3aed;color:white;border-radius:10px;padding:10px 18px;font-size:13px;font-weight:800;cursor:pointer;transition:background .15s}',
     '.submit:hover{background:#6d28d9}',
     '.submit:disabled{opacity:.5;cursor:not-allowed}',
+    // Attachment area
+    '.attach-zone{border:2px dashed #e7e5e4;border-radius:10px;padding:10px 12px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;font-weight:700;color:#a8a29e;cursor:pointer;transition:border-color .15s,background .15s,color .15s;margin-top:4px}',
+    '.attach-zone:hover,.attach-zone.kz-dragover{border-color:#7c3aed;background:rgba(124,58,237,.05);color:#7c3aed}',
+    '.attach-preview{background:#fafaf9;border:1.5px solid #e7e5e4;border-radius:10px;padding:8px 10px;display:flex;align-items:center;gap:10px;margin-top:4px}',
+    '.attach-thumb{width:52px;height:38px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1px solid #e7e5e4}',
+    '.attach-vid-icon{width:52px;height:38px;background:#1c1917;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}',
+    '.attach-info{flex:1;min-width:0}',
+    '.attach-fname{font-size:12px;font-weight:600;color:#44403c;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}',
+    '.attach-fsize{font-size:11px;color:#a8a29e;margin-top:2px;display:block}',
+    '.attach-del{border:0;background:transparent;color:#a8a29e;font-size:18px;line-height:1;cursor:pointer;padding:0 2px;flex-shrink:0}',
+    '.attach-del:hover{color:#dc2626}',
     '@media(max-width:520px){.tab{top:auto;right:14px;bottom:14px;writing-mode:horizontal-tb;transform:none;border-radius:999px;padding:12px 16px}.bar{width:calc(100vw - 28px);justify-content:center}.modal{left:16px;right:16px;bottom:16px;width:auto}.row{grid-template-columns:1fr}}',
     // Slide-out comment panel
     '.panel-backdrop{position:fixed;inset:0;z-index:2147483645;background:rgba(28,25,23,.18)}',
@@ -529,6 +540,8 @@
   function renderModal() {
     removeByClass('modal-backdrop');
     removeByClass('modal');
+    state.attachedFile = null;
+
     var backdrop = document.createElement('div');
     backdrop.className = 'modal-backdrop';
     var modal = document.createElement('form');
@@ -538,6 +551,7 @@
       '<button class="close" type="button" aria-label="Close">&times;</button></header>',
       '<div class="form">',
       '<label>Comment<textarea name="comment" required maxlength="5000" placeholder="What would you like to change or report?"></textarea></label>',
+      // attachment area injected by JS below
       '<div class="row">',
       '<label>Name (optional)<input name="name" maxlength="120" placeholder="Your name"></label>',
       '<label>Email (optional)<input name="email" type="email" maxlength="180" placeholder="your@email.com"></label>',
@@ -546,12 +560,99 @@
       '</div>',
       '<div class="actions"><span class="status"></span><button class="submit" type="submit">Send feedback</button></div>',
     ].join('');
+
+    // ── Attachment zone ───────────────────────────────────────────────────
+    var formDiv = modal.querySelector('.form');
+    var rowDiv = modal.querySelector('.row');
+    var attachLabel = document.createElement('label');
+    attachLabel.style.display = 'grid';
+    attachLabel.style.gap = '0';
+    attachLabel.innerHTML = '<span style="display:grid;gap:5px;font-size:11px;font-weight:700;color:#78716c;letter-spacing:.03em;text-transform:uppercase">Attach file (optional)</span>';
+
+    var fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*,video/*';
+    fileInput.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none';
+    attachLabel.appendChild(fileInput);
+
+    var zone = document.createElement('div');
+    zone.className = 'attach-zone';
+    zone.innerHTML = '<span>📎</span><span>Attach screenshot, image, or video</span>';
+    attachLabel.appendChild(zone);
+
+    var preview = document.createElement('div');
+    preview.className = 'attach-preview';
+    preview.style.display = 'none';
+    attachLabel.appendChild(preview);
+
+    formDiv.insertBefore(attachLabel, rowDiv);
+
+    function showPreview(file) {
+      zone.style.display = 'none';
+      preview.style.display = 'flex';
+      preview.innerHTML = '';
+      var isVideo = file.type.startsWith('video/');
+      if (isVideo) {
+        var icon = document.createElement('div');
+        icon.className = 'attach-vid-icon';
+        icon.textContent = '▶';
+        preview.appendChild(icon);
+      } else {
+        var thumb = document.createElement('img');
+        thumb.className = 'attach-thumb';
+        thumb.src = URL.createObjectURL(file);
+        preview.appendChild(thumb);
+      }
+      var info = document.createElement('div');
+      info.className = 'attach-info';
+      info.innerHTML = '<span class="attach-fname">' + escapeHtml(file.name) + '</span><span class="attach-fsize">' + formatBytes(file.size) + '</span>';
+      var del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'attach-del';
+      del.textContent = '×';
+      del.addEventListener('click', function () {
+        state.attachedFile = null;
+        fileInput.value = '';
+        preview.style.display = 'none';
+        zone.style.display = '';
+      });
+      preview.appendChild(info);
+      preview.appendChild(del);
+    }
+
+    function handleFile(file) {
+      if (!file) return;
+      var maxMB = file.type.startsWith('video/') ? 50 : 10;
+      if (file.size > maxMB * 1024 * 1024) {
+        alert('File too large. Max ' + maxMB + ' MB.');
+        return;
+      }
+      state.attachedFile = file;
+      showPreview(file);
+    }
+
+    zone.addEventListener('click', function () { fileInput.click(); });
+    fileInput.addEventListener('change', function () { if (fileInput.files[0]) handleFile(fileInput.files[0]); });
+    zone.addEventListener('dragover', function (e) { e.preventDefault(); zone.classList.add('kz-dragover'); });
+    zone.addEventListener('dragleave', function () { zone.classList.remove('kz-dragover'); });
+    zone.addEventListener('drop', function (e) {
+      e.preventDefault();
+      zone.classList.remove('kz-dragover');
+      if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+    });
+
     modal.querySelector('.close').addEventListener('click', function () {
       backdrop.remove(); modal.remove(); removeByClass('pin');
     });
     modal.addEventListener('submit', submitFeedback);
     root.appendChild(backdrop);
     root.appendChild(modal);
+  }
+
+  function formatBytes(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
   // html2canvas is bundled at the top of this file — available as window.html2canvas immediately
@@ -591,9 +692,54 @@
     var button = form.querySelector('.submit');
     button.disabled = true;
     statusEl.className = 'status';
-    statusEl.textContent = 'Capturing screenshot…';
 
-    var screenshot = await captureScreenshot();
+    var screenshot = null;
+    var attachmentUrl = null;
+
+    if (state.attachedFile) {
+      var attached = state.attachedFile;
+      if (attached.type.startsWith('video/')) {
+        // Upload video first, then skip html2canvas
+        statusEl.textContent = 'Uploading video…';
+        try {
+          var fd = new FormData();
+          fd.append('project_id', projectId);
+          fd.append('file', attached);
+          var uploadRes = await fetch(appOrigin + '/api/public/upload', { method: 'POST', body: fd, mode: 'cors' });
+          var uploadBody = await uploadRes.json().catch(function () { return {}; });
+          if (uploadRes.ok && uploadBody.url) {
+            attachmentUrl = uploadBody.url;
+          } else {
+            statusEl.className = 'status error-msg';
+            statusEl.textContent = uploadBody.error || 'Video upload failed. Please try again.';
+            button.disabled = false;
+            return;
+          }
+        } catch (_) {
+          statusEl.className = 'status error-msg';
+          statusEl.textContent = 'Video upload failed. Please check your connection.';
+          button.disabled = false;
+          return;
+        }
+      } else {
+        // Image — read as data URL, use instead of auto-capture
+        statusEl.textContent = 'Processing image…';
+        try {
+          screenshot = await new Promise(function (resolve, reject) {
+            var reader = new FileReader();
+            reader.onload = function (e) { resolve(e.target.result); };
+            reader.onerror = reject;
+            reader.readAsDataURL(attached);
+          });
+        } catch (_) {
+          screenshot = null;
+        }
+      }
+    } else {
+      statusEl.textContent = 'Capturing screenshot…';
+      screenshot = await captureScreenshot();
+    }
+
     statusEl.textContent = 'Sending…';
 
     var formData = new FormData(form);
@@ -618,6 +764,7 @@
       viewport_height: window.innerHeight,
       user_agent: navigator.userAgent,
       screenshot: screenshot,
+      attachment_url: attachmentUrl,
     };
 
     try {
