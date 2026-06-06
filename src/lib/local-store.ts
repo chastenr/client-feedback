@@ -8,7 +8,9 @@ interface LocalDb {
   comments: TaskComment[];
 }
 
-const DATA_DIR = path.join(process.cwd(), '.local-data');
+const DATA_DIR = process.env.VERCEL
+  ? '/tmp/kaze-local-data'
+  : path.join(process.cwd(), '.local-data');
 const DATA_FILE = path.join(DATA_DIR, 'feedback.json');
 
 export function isLocalMode() {
