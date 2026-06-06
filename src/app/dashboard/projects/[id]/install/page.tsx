@@ -9,7 +9,7 @@ function getWidgetBaseUrl(): string {
   // NEXT_PUBLIC_WIDGET_URL takes priority — set this to your deployed domain in production.
   // e.g. https://your-app.vercel.app/widget.js
   const envUrl = process.env.NEXT_PUBLIC_WIDGET_URL;
-  if (envUrl) return envUrl.replace(/\/widget\.js$/, '');
+  if (envUrl) return envUrl.replace(/\/widget\.js$/, '').replace(/\/$/, '');
 
   // Dev fallback: use current origin. Never reaches here in production if env var is set.
   if (typeof window !== 'undefined') return window.location.origin;

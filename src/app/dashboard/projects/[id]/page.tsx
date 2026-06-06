@@ -81,7 +81,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
 
   function getWidgetBase() {
     const envUrl = process.env.NEXT_PUBLIC_WIDGET_URL;
-    if (envUrl) return envUrl.replace(/\/widget\.js$/, '');
+    if (envUrl) return envUrl.replace(/\/widget\.js$/, '').replace(/\/$/, '');
     return typeof window !== 'undefined' ? window.location.origin : 'https://YOUR-APP.vercel.app';
   }
 
