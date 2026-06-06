@@ -247,8 +247,14 @@ export default function DashboardPage() {
                         {project.client_name && <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-bold text-stone-600">{project.client_name}</span>}
                       </div>
                       <h3 className="truncate text-lg font-black text-stone-900">{project.name}</h3>
-                      <p className="mt-1 truncate text-sm font-semibold text-stone-500">{safeHost(project.website_url)}</p>
-                      <p className="mt-0.5 truncate text-xs text-stone-400">{project.website_url}</p>
+                      <a
+                        href={project.website_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-1 block truncate text-sm font-semibold text-stone-500 hover:text-violet-700"
+                      >
+                        {safeHost(project.website_url)}
+                      </a>
                     </div>
                     <div className="hidden h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl bg-sky-50 text-lg font-black text-sky-700 sm:flex">
                       {safeHost(project.website_url).slice(0, 1).toUpperCase()}
