@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient, requireProjectAccess } from '@/lib/supabase/server';
+import { createServiceClient, getUserDisplayName, requireProjectAccess } from '@/lib/supabase/server';
 import { isLocalMode, getLocalTask, getLocalTaskComments, createLocalComment } from '@/lib/local-store';
 
 export const runtime = 'nodejs';
@@ -56,14 +56,13 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const taskId = typeof body?.task_id === 'string' ? body.task_id : '';
   const message = typeof body?.message === 'string' ? body.message.trim() : '';
-  const authorName = typeof body?.author_name === 'string' ? body.author_name.trim() || null : null;
 
   if (!taskId || !message) {
     return NextResponse.json({ error: 'task_id and message are required.' }, { status: 400, headers: cors });
   }
 
   if (isLocalMode()) {
-    const comment = await createLocalComment(taskId, message, authorName);
+    const comment = await createLocalComment(taskId, message, 'Client');
     if (!comment) return NextResponse.json({ error: 'Task not found.' }, { status: 404, headers: cors });
     return NextResponse.json({ comment }, { status: 201, headers: cors });
   }
@@ -83,9 +82,11 @@ export async function POST(request: Request) {
     return NextResponse.json(await access.json(), { status: access.status, headers: cors });
   }
 
+  const authorName = await getUserDisplayName(supabase, access.user);
+
   const { data: comment, error } = await supabase
     .from('task_comments')
-    .insert({ task_id: taskId, user_id: null, author_name: authorName, message })
+    .insert({ task_id: taskId, user_id: access.user.id, author_name: authorName, message })
     .select('*')
     .single();
 
