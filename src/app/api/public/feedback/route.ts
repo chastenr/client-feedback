@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient, getUserDisplayName, jsonError, requireProjectAccess } from '@/lib/supabase/server';
+import { createServiceClient, getAppOrigin, getUserDisplayName, requireProjectAccess } from '@/lib/supabase/server';
 import { publicFeedbackSchema } from '@/lib/api/validation';
 import { createLocalTask, isLocalMode } from '@/lib/local-store';
+import { sendSlackNotification } from '@/lib/slack';
 
 export const runtime = 'nodejs';
 
@@ -81,7 +82,7 @@ export async function POST(request: Request) {
 
   const { data: project, error: projectError } = await supabase
     .from('projects')
-    .select('id')
+    .select('id, name, website_url')
     .or(`public_token.eq.${projectToken},share_token.eq.${projectToken}`)
     .single();
 
@@ -158,6 +159,18 @@ export async function POST(request: Request) {
   if (insertError || !task) {
     return NextResponse.json({ error: insertError?.message ?? 'Unable to save feedback.' }, { status: 500, headers: corsHeaders });
   }
+
+  await sendSlackNotification({
+    type: 'feedback',
+    projectName: project.name,
+    projectUrl: project.website_url,
+    taskId: task.id,
+    taskUrl: `${getAppOrigin(request)}/dashboard/tasks/${task.id}`,
+    pageUrl: payload.pageUrl,
+    pagePath: payload.pagePath,
+    authorName: reporterName,
+    message: comment || payload.title,
+  });
 
   return NextResponse.json({ id: task.id, screenshotUrl, reporterName }, { status: 201, headers: corsHeaders });
 }

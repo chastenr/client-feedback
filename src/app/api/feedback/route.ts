@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient, getUserDisplayName, jsonError, requireProjectAccess } from '@/lib/supabase/server';
+import { createServiceClient, getAppOrigin, getUserDisplayName, requireProjectAccess } from '@/lib/supabase/server';
 import { widgetFeedbackSchema } from '@/lib/api/validation';
 import { createLocalTask, getLocalProjectByToken, isLocalMode } from '@/lib/local-store';
+import { sendSlackNotification } from '@/lib/slack';
 
 export const runtime = 'nodejs';
 
@@ -105,7 +106,7 @@ export async function POST(request: Request) {
 
   const { data: project, error: projectError } = await supabase
     .from('projects')
-    .select('id, allowed_origin')
+    .select('id, name, website_url, allowed_origin')
     .or(`public_token.eq.${project_id},share_token.eq.${project_id}`)
     .single();
 
@@ -206,6 +207,18 @@ export async function POST(request: Request) {
       { status: 500, headers: corsHeaders },
     );
   }
+
+  await sendSlackNotification({
+    type: 'feedback',
+    projectName: project.name,
+    projectUrl: project.website_url,
+    taskId: task.id,
+    taskUrl: `${getAppOrigin(request)}/dashboard/tasks/${task.id}`,
+    pageUrl: page_url,
+    pagePath: page_path,
+    authorName: reporterName,
+    message: comment,
+  });
 
   return NextResponse.json({ id: task.id, screenshotUrl, reporterName }, { status: 201, headers: corsHeaders });
 }

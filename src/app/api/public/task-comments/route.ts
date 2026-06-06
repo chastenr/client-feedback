@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { createServiceClient, getUserDisplayName, requireProjectAccess } from '@/lib/supabase/server';
+import { createServiceClient, getAppOrigin, getUserDisplayName, requireProjectAccess } from '@/lib/supabase/server';
 import { isLocalMode, getLocalTask, getLocalTaskComments, createLocalComment } from '@/lib/local-store';
+import { sendSlackNotification } from '@/lib/slack';
 
 export const runtime = 'nodejs';
 
@@ -86,7 +87,7 @@ export async function POST(request: Request) {
 
   const { data: task } = await supabase
     .from('feedback_tasks')
-    .select('id,project_id')
+    .select('id,project_id,page_url,page_path,comment,description,title')
     .eq('id', taskId)
     .single();
 
@@ -108,6 +109,24 @@ export async function POST(request: Request) {
   if (error || !comment) {
     return NextResponse.json({ error: error?.message ?? 'Unable to add comment.' }, { status: 500, headers: cors });
   }
+
+  const { data: project } = await supabase
+    .from('projects')
+    .select('name, website_url')
+    .eq('id', task.project_id)
+    .maybeSingle();
+
+  await sendSlackNotification({
+    type: 'comment',
+    projectName: project?.name,
+    projectUrl: project?.website_url,
+    taskId,
+    taskUrl: `${getAppOrigin(request)}/dashboard/tasks/${taskId}`,
+    pageUrl: task.page_url,
+    pagePath: task.page_path,
+    authorName,
+    message,
+  });
 
   return NextResponse.json({ comment }, { status: 201, headers: cors });
 }
