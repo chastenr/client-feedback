@@ -292,7 +292,6 @@
       '</div>',
       '<div class="panel-footer">',
       '<div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:0">',
-      '<input class="panel-input panel-name" type="text" placeholder="Your name (optional)" maxlength="120" style="font-size:11px;padding:6px 10px">',
       '<div style="display:flex;gap:6px">',
       '<input class="panel-input panel-message" type="text" placeholder="Add a comment…" maxlength="2000">',
       '<button class="panel-send" type="button">Send</button>',
@@ -304,7 +303,6 @@
     panel.querySelector('.panel-close').addEventListener('click', closePanel);
 
     var threadEl = panel.querySelector('.panel-thread');
-    var nameEl = panel.querySelector('.panel-name');
     var messageEl = panel.querySelector('.panel-message');
     var sendBtn = panel.querySelector('.panel-send');
 
@@ -312,13 +310,12 @@
       fetchPanelComments(task.id, threadEl);
       sendBtn.addEventListener('click', function () {
         var msg = messageEl.value.trim();
-        var authorName = nameEl.value.trim() || null;
         if (!msg) return;
         sendBtn.disabled = true;
         fetch(appOrigin + '/api/public/task-comments', {
           method: 'POST',
           headers: authHeaders({ 'Content-Type': 'application/json' }),
-          body: JSON.stringify({ task_id: task.id, message: msg, author_name: authorName }),
+          body: JSON.stringify({ task_id: task.id, message: msg }),
           mode: 'cors',
         })
           .then(function (r) { return r.json(); })

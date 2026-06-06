@@ -45,11 +45,26 @@ export async function GET(request: Request) {
 
   const { data: comments } = await supabase
     .from('task_comments')
-    .select('id,message,created_at,user_id')
+    .select('id,message,created_at,user_id,author_name')
     .eq('task_id', taskId)
     .order('created_at', { ascending: true });
 
-  return NextResponse.json({ task, comments: comments ?? [] }, { headers: cors });
+  const userIds = Array.from(new Set((comments ?? []).map(comment => comment.user_id).filter(Boolean)));
+  const { data: profiles } = userIds.length
+    ? await supabase.from('profiles').select('id,full_name,username,email').in('id', userIds)
+    : { data: [] };
+  const profileNames = new Map(
+    (profiles ?? []).map(profile => [
+      profile.id,
+      profile.full_name || profile.username || profile.email || 'Client',
+    ]),
+  );
+  const commentsWithNames = (comments ?? []).map(comment => ({
+    ...comment,
+    author_name: comment.author_name || (comment.user_id ? profileNames.get(comment.user_id) : null) || 'Client',
+  }));
+
+  return NextResponse.json({ task, comments: commentsWithNames }, { headers: cors });
 }
 
 export async function POST(request: Request) {
