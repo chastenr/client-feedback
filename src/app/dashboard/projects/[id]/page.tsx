@@ -1156,7 +1156,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
             onClick={closeDrawer}
           />
           <aside
-            className={`fixed right-0 top-0 bottom-0 z-40 flex w-full max-w-xl flex-col bg-white shadow-2xl transition-transform duration-[260ms] ease-[cubic-bezier(.4,0,.2,1)] ${drawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
+            className={`kaze-drawer fixed right-0 top-0 bottom-0 z-40 flex w-full max-w-xl flex-col bg-white shadow-2xl transition-transform duration-[260ms] ease-[cubic-bezier(.4,0,.2,1)] ${drawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
           >
             {/* Drawer header */}
             <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
@@ -1290,35 +1290,35 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
 
                 <div>
                   <p className="mb-2 text-xs font-bold uppercase tracking-widest text-stone-400">Details</p>
-                  <dl className="grid gap-2 rounded-xl border border-stone-100 bg-white px-4 py-3 text-xs">
-                    <div className="flex items-start justify-between gap-3">
+                  <dl className="grid gap-2 rounded-xl border border-stone-100 bg-white p-4 text-xs">
+                    <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-3">
                       <dt className="font-bold uppercase tracking-wide text-stone-400">Task</dt>
-                      <dd className="font-mono text-stone-700">#{shortId(drawerTask.id)}</dd>
+                      <dd className="min-w-0 break-words font-mono text-stone-700">#{shortId(drawerTask.id)}</dd>
                     </div>
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-3">
                       <dt className="font-bold uppercase tracking-wide text-stone-400">Created</dt>
-                      <dd className="text-right text-stone-700">{new Date(drawerTask.created_at).toLocaleString()}</dd>
+                      <dd className="min-w-0 break-words text-stone-700">{new Date(drawerTask.created_at).toLocaleString()}</dd>
                     </div>
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-3">
                       <dt className="font-bold uppercase tracking-wide text-stone-400">Page</dt>
-                      <dd className="max-w-[70%] break-words text-right text-stone-700">{drawerTask.page_path || safePath(drawerTask.page_url)}</dd>
+                      <dd className="min-w-0 break-words text-stone-700">{drawerTask.page_path || safePath(drawerTask.page_url)}</dd>
                     </div>
                     {drawerTask.selector && (
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-3">
                         <dt className="font-bold uppercase tracking-wide text-stone-400">Selector</dt>
-                        <dd className="max-w-[70%] break-words text-right font-mono text-[11px] text-stone-600">{drawerTask.selector}</dd>
+                        <dd className="min-w-0 break-words font-mono text-[11px] leading-5 text-stone-600">{drawerTask.selector}</dd>
                       </div>
                     )}
                     {drawerTask.element_text && (
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-3">
                         <dt className="font-bold uppercase tracking-wide text-stone-400">Text</dt>
-                        <dd className="max-w-[70%] break-words text-right text-stone-700">{drawerTask.element_text}</dd>
+                        <dd className="min-w-0 break-words text-stone-700">{drawerTask.element_text}</dd>
                       </div>
                     )}
                     {drawerTask.user_agent && (
-                      <div className="flex items-start justify-between gap-3">
+                      <div className="grid grid-cols-[86px_minmax(0,1fr)] gap-3">
                         <dt className="font-bold uppercase tracking-wide text-stone-400">Browser</dt>
-                        <dd className="max-w-[70%] truncate text-right text-stone-500">{drawerTask.user_agent}</dd>
+                        <dd className="min-w-0 break-words text-stone-500">{drawerTask.user_agent}</dd>
                       </div>
                     )}
                   </dl>
