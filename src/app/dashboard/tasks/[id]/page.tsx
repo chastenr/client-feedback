@@ -99,7 +99,7 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
             <p className="mt-0.5 text-xs text-stone-400">{task.page_url}</p>
           </div>
           <a
-            href={task.page_url}
+            href={(() => { try { const u = new URL(task.page_url); u.searchParams.set('feedback', '1'); return u.toString(); } catch { return task.page_url; } })()}
             target="_blank"
             rel="noopener noreferrer"
             className="w-fit rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-violet-700"
