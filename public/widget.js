@@ -7,23 +7,33 @@
   });
 
   if (!script) {
-    console.warn('[Kaze] widget.js could not locate its own script tag. Make sure it is loaded with a <script> tag, not as a module.');
+    console.warn('[Kaze] widget.js could not locate its own script tag.');
     return;
   }
 
   var projectId = script.getAttribute('data-project-id');
   if (!projectId) {
-    console.error('[Kaze] data-project-id attribute is missing on the widget script tag. The feedback widget will not load.');
+    console.error('[Kaze] data-project-id attribute is missing on the widget script tag.');
     return;
   }
 
   var appOrigin = new URL(script.src).origin;
 
-  var state = {
-    active: false,
-    selected: null,
-    hoverEl: null,
-  };
+  // ─── Review-session gate ───────────────────────────────────────────────────
+  // The widget is INVISIBLE to normal visitors. It only activates when someone
+  // arrives via a review link (?feedback=1), and that session persists while
+  // they stay in the same browser tab (sessionStorage).
+  function isReviewSession() {
+    try { if (sessionStorage.getItem('kaze_review') === '1') return true; } catch (_) {}
+    return new URLSearchParams(window.location.search).get('feedback') === '1';
+  }
+
+  if (!isReviewSession()) return; // normal visitor — stop here, render nothing
+
+  try { sessionStorage.setItem('kaze_review', '1'); } catch (_) {}
+
+  // ─── State ─────────────────────────────────────────────────────────────────
+  var state = { active: false, selected: null, hoverEl: null };
 
   // ─── Shadow DOM host ───────────────────────────────────────────────────────
   var host = document.createElement('div');
@@ -75,7 +85,7 @@
   ].join('');
   root.appendChild(style);
 
-  // ─── Feedback tab button ───────────────────────────────────────────────────
+  // ─── Feedback tab ──────────────────────────────────────────────────────────
   var tab = document.createElement('button');
   tab.className = 'tab';
   tab.type = 'button';
@@ -86,7 +96,7 @@
   var outline = document.createElement('div');
   outline.className = 'outline';
 
-  // ─── Install-check ping (fire-and-forget) ──────────────────────────────────
+  // ─── Install-check ping ────────────────────────────────────────────────────
   function pingInstallCheck() {
     try {
       fetch(appOrigin + '/api/widget/install-check', {
@@ -99,21 +109,16 @@
     } catch (_) {}
   }
 
-  // ─── ?feedback=1 attention pulse ──────────────────────────────────────────
-  // When the client arrives via the review link, briefly pulse the tab so they notice it.
-  function maybeActivateFromUrl() {
-    var params = new URLSearchParams(window.location.search);
-    if (params.get('feedback') === '1') {
+  // ─── Init (only runs for review sessions) ─────────────────────────────────
+  function init() {
+    pingInstallCheck();
+    // Pulse the tab so the client notices it on first arrival (?feedback=1)
+    if (new URLSearchParams(window.location.search).get('feedback') === '1') {
       tab.classList.add('pulse');
       tab.addEventListener('animationend', function () {
         tab.classList.remove('pulse');
       }, { once: true });
     }
-  }
-
-  function init() {
-    pingInstallCheck();
-    maybeActivateFromUrl();
   }
 
   if (document.readyState === 'loading') {
@@ -122,7 +127,7 @@
     init();
   }
 
-  // ─── Bar (selection mode indicator) ───────────────────────────────────────
+  // ─── Selection mode ────────────────────────────────────────────────────────
   function renderBar() {
     removeByClass('bar');
     if (!state.active) return;
@@ -178,7 +183,6 @@
     event.preventDefault();
     event.stopPropagation();
     event.stopImmediatePropagation();
-
     var target = event.target && event.target.nodeType === 1 ? event.target : state.hoverEl;
     state.selected = {
       x: event.clientX,
@@ -257,7 +261,6 @@
       '</div>',
       '<div class="actions"><span class="status"></span><button class="submit" type="submit">Send feedback</button></div>',
     ].join('');
-
     modal.querySelector('.close').addEventListener('click', function () {
       backdrop.remove();
       modal.remove();
@@ -272,10 +275,11 @@
     if (window.html2canvas) return Promise.resolve(window.html2canvas);
     return new Promise(function (resolve, reject) {
       var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js';
+      // Load from same origin as widget.js — avoids CSP blocks on third-party CDNs
+      s.src = appOrigin + '/html2canvas.min.js';
       s.async = true;
       s.onload = function () { resolve(window.html2canvas); };
-      s.onerror = reject;
+      s.onerror = function () { resolve(null); }; // fail gracefully
       document.head.appendChild(s);
     });
   }
@@ -297,7 +301,7 @@
         windowHeight: window.innerHeight,
         ignoreElements: function (el) { return el === host || (host.contains && host.contains(el)); },
       });
-      return canvas.toDataURL('image/jpeg', 0.72);
+      return canvas.toDataURL('image/jpeg', 0.65);
     } catch (_) {
       return null;
     }
@@ -351,14 +355,9 @@
         body: JSON.stringify(payload),
         mode: 'cors',
       });
-
       var body = null;
       try { body = await response.json(); } catch (_) {}
-
-      if (!response.ok) {
-        throw new Error(humanizeError(response.status, body));
-      }
-
+      if (!response.ok) throw new Error(humanizeError(response.status, body));
       statusEl.className = 'status success-msg';
       statusEl.textContent = 'Feedback sent. Thank you!';
       button.textContent = 'Done';
