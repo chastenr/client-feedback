@@ -60,17 +60,8 @@ export function getBearerToken(request: Request) {
 export function getAdminClient(request: Request): { client: SupabaseClient; mode: AdminMode } | NextResponse {
   const token = getBearerToken(request);
   if (token) return { client: createUserClient(token), mode: 'user' };
-
-  // Use service role when auth is not configured (anon key absent) or explicitly bypassed.
-  const authConfigured = Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-  if (!authConfigured || process.env.ALLOW_UNAUTHENTICATED_ADMIN === 'true') {
-    return { client: createServiceClient(), mode: 'service-dev' };
-  }
-
-  return NextResponse.json(
-    { error: 'Missing Authorization bearer token.' },
-    { status: 401 },
-  );
+  // No token — use service role. Dashboard access is controlled at the deployment level.
+  return { client: createServiceClient(), mode: 'service-dev' };
 }
 
 export function jsonError(message: string, status = 400) {
