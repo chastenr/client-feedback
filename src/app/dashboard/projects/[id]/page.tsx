@@ -1,8 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { STATUS_LABELS, TASK_STATUSES, type FeedbackTask, type Project, type TaskStatus } from '@/lib/api/feedback-types';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  STATUS_LABELS,
+  TASK_STATUSES,
+  type FeedbackTask,
+  type Project,
+  type TaskComment,
+  type TaskStatus,
+} from '@/lib/api/feedback-types';
 import { dashboardFetch } from '@/lib/api/client';
 
 type Tab = 'tasks' | 'install' | 'settings';
@@ -16,6 +23,15 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [copiedSnippet, setCopiedSnippet] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('tasks');
+
+  // Drawer state
+  const [drawerTask, setDrawerTask] = useState<FeedbackTask | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerComments, setDrawerComments] = useState<TaskComment[]>([]);
+  const [drawerCommentsLoading, setDrawerCommentsLoading] = useState(false);
+  const [drawerComment, setDrawerComment] = useState('');
+  const [drawerSaving, setDrawerSaving] = useState(false);
+  const commentInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -46,11 +62,49 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
 
   async function moveTask(taskId: string, status: TaskStatus) {
     setTasks(prev => prev.map(task => task.id === taskId ? { ...task, status } : task));
+    if (drawerTask?.id === taskId) setDrawerTask(prev => prev ? { ...prev, status } : prev);
     await dashboardFetch(`/api/tasks/${taskId}/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     });
+  }
+
+  function openDrawer(task: FeedbackTask) {
+    setDrawerTask(task);
+    setDrawerComments([]);
+    setDrawerComment('');
+    setDrawerOpen(true);
+    setDrawerCommentsLoading(true);
+    dashboardFetch(`/api/tasks/${task.id}`)
+      .then(r => r.json().catch(() => ({})))
+      .then(data => {
+        setDrawerComments(data.comments ?? []);
+        setDrawerCommentsLoading(false);
+      })
+      .catch(() => setDrawerCommentsLoading(false));
+  }
+
+  function closeDrawer() {
+    setDrawerOpen(false);
+    setTimeout(() => setDrawerTask(null), 280);
+  }
+
+  async function addDrawerComment(event: React.FormEvent) {
+    event.preventDefault();
+    if (!drawerComment.trim() || !drawerTask) return;
+    setDrawerSaving(true);
+    const response = await dashboardFetch(`/api/tasks/${drawerTask.id}/comments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: drawerComment }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setDrawerSaving(false);
+    if (response.ok && data.comment) {
+      setDrawerComments(prev => [...prev, data.comment]);
+      setDrawerComment('');
+    }
   }
 
   function getReviewLink() {
@@ -93,6 +147,24 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     { id: 'install', label: 'Install' },
     { id: 'settings', label: 'Settings' },
   ];
+
+  const pinLeftPercent = drawerTask
+    ? Math.min(100, Math.max(0, (Number(drawerTask.x) / drawerTask.viewport_width) * 100))
+    : 50;
+  const pinTopPercent = drawerTask
+    ? Math.min(100, Math.max(0, (Number(drawerTask.y) / drawerTask.viewport_height) * 100))
+    : 50;
+
+  function getPageUrl() {
+    if (!drawerTask) return '#';
+    try {
+      const u = new URL(drawerTask.page_url);
+      u.searchParams.set('feedback', '1');
+      return u.toString();
+    } catch {
+      return drawerTask.page_url;
+    }
+  }
 
   return (
     <main className="min-h-screen bg-stone-50 text-stone-900">
@@ -209,46 +281,45 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                           key={task.id}
                           draggable
                           onDragStart={event => event.dataTransfer.setData('text/task-id', task.id)}
-                          className="rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                          className="cursor-pointer rounded-2xl border border-stone-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+                          onClick={() => openDrawer(task)}
                         >
-                          <Link href={`/dashboard/tasks/${task.id}`} className="block">
-                            {task.screenshot_url ? (
-                              <div className="relative h-32 overflow-hidden rounded-t-2xl bg-stone-100">
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={task.screenshot_url} alt="" className="h-full w-full object-cover object-top" />
-                                <div
-                                  className="task-pin absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-violet-600 shadow-lg"
-                                  style={{
-                                    '--pin-left': `${Math.min(96, Math.max(4, (Number(task.x) / task.viewport_width) * 100))}%`,
-                                    '--pin-top': `${Math.min(92, Math.max(8, (Number(task.y) / task.viewport_height) * 100))}%`,
-                                  } as React.CSSProperties}
-                                />
-                              </div>
-                            ) : (
-                              <div className="relative h-32 overflow-hidden rounded-t-2xl bg-gradient-to-br from-violet-50 to-stone-100">
-                                <div className="absolute left-3 right-3 top-3 truncate rounded-lg bg-white/80 px-2 py-1 text-[11px] font-semibold text-stone-500 shadow-sm">
-                                  {task.page_path ?? task.page_url}
-                                </div>
-                                <div
-                                  className="task-pin absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-violet-600 shadow-lg"
-                                  style={{
-                                    '--pin-left': `${Math.min(96, Math.max(4, (Number(task.x) / task.viewport_width) * 100))}%`,
-                                    '--pin-top': `${Math.min(92, Math.max(20, (Number(task.y) / task.viewport_height) * 100))}%`,
-                                  } as React.CSSProperties}
-                                />
-                              </div>
-                            )}
-                            <div className="p-3">
-                              <div className="mb-2 flex items-center justify-between gap-2">
-                                {task.reporter_name && (
-                                  <span className="truncate rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-bold text-violet-700">{task.reporter_name}</span>
-                                )}
-                                <span className="ml-auto text-[11px] text-stone-400">{new Date(task.created_at).toLocaleDateString()}</span>
-                              </div>
-                              <p className="line-clamp-2 text-sm font-semibold text-stone-900">{task.comment ?? task.description ?? task.title}</p>
-                              <p className="mt-1 truncate text-xs text-stone-400">{task.page_path ?? task.page_url}</p>
+                          {task.screenshot_url ? (
+                            <div className="relative h-32 overflow-hidden rounded-t-2xl bg-stone-100">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={task.screenshot_url} alt="" className="h-full w-full object-cover object-top" />
+                              <div
+                                className="task-pin absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-violet-600 shadow-lg"
+                                style={{
+                                  '--pin-left': `${Math.min(96, Math.max(4, (Number(task.x) / task.viewport_width) * 100))}%`,
+                                  '--pin-top': `${Math.min(92, Math.max(8, (Number(task.y) / task.viewport_height) * 100))}%`,
+                                } as React.CSSProperties}
+                              />
                             </div>
-                          </Link>
+                          ) : (
+                            <div className="relative h-32 overflow-hidden rounded-t-2xl bg-gradient-to-br from-violet-50 to-stone-100">
+                              <div className="absolute left-3 right-3 top-3 truncate rounded-lg bg-white/80 px-2 py-1 text-[11px] font-semibold text-stone-500 shadow-sm">
+                                {task.page_path ?? task.page_url}
+                              </div>
+                              <div
+                                className="task-pin absolute h-5 w-5 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-violet-600 shadow-lg"
+                                style={{
+                                  '--pin-left': `${Math.min(96, Math.max(4, (Number(task.x) / task.viewport_width) * 100))}%`,
+                                  '--pin-top': `${Math.min(92, Math.max(20, (Number(task.y) / task.viewport_height) * 100))}%`,
+                                } as React.CSSProperties}
+                              />
+                            </div>
+                          )}
+                          <div className="p-3">
+                            <div className="mb-2 flex items-center justify-between gap-2">
+                              {task.reporter_name && (
+                                <span className="truncate rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-bold text-violet-700">{task.reporter_name}</span>
+                              )}
+                              <span className="ml-auto text-[11px] text-stone-400">{new Date(task.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <p className="line-clamp-2 text-sm font-semibold text-stone-900">{task.comment ?? task.description ?? task.title}</p>
+                            <p className="mt-1 truncate text-xs text-stone-400">{task.page_path ?? task.page_url}</p>
+                          </div>
                         </article>
                       ))}
                     </div>
@@ -261,7 +332,6 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
 
         {activeTab === 'install' && project && (
           <div className="mx-auto max-w-3xl space-y-4">
-            {/* Status banner */}
             <div className={`flex items-center justify-between rounded-2xl border px-5 py-4 ${
               isInstalled
                 ? 'border-emerald-200 bg-emerald-50'
@@ -369,6 +439,154 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
         )}
       </div>
 
+      {/* ── Task detail drawer ─────────────────────────────────────────────── */}
+      {drawerTask && (
+        <>
+          <div
+            className={`fixed inset-0 z-30 bg-stone-950/20 transition-opacity duration-200 ${drawerOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            onClick={closeDrawer}
+          />
+          <aside
+            className={`fixed right-0 top-0 bottom-0 z-40 flex w-full max-w-xl flex-col bg-white shadow-2xl transition-transform duration-[260ms] ease-[cubic-bezier(.4,0,.2,1)] ${drawerOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          >
+            {/* Drawer header */}
+            <div className="flex flex-shrink-0 items-start justify-between gap-3 border-b border-stone-100 px-5 py-4">
+              <div className="min-w-0">
+                <p className="truncate text-xs font-semibold text-stone-400">{drawerTask.page_path ?? drawerTask.page_url}</p>
+                <h2 className="mt-0.5 line-clamp-2 text-base font-black text-stone-900">
+                  {drawerTask.comment ?? drawerTask.description ?? drawerTask.title}
+                </h2>
+              </div>
+              <div className="flex flex-shrink-0 items-center gap-2">
+                <a
+                  href={getPageUrl()}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-bold text-stone-600 hover:bg-stone-50"
+                >
+                  Open page ↗
+                </a>
+                <button
+                  type="button"
+                  onClick={closeDrawer}
+                  className="rounded-lg border border-stone-200 px-2 py-1.5 text-sm font-bold text-stone-400 hover:bg-stone-50 hover:text-stone-700"
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+
+            {/* Drawer body */}
+            <div className="flex-1 overflow-y-auto">
+              <div className="p-5 space-y-5">
+                {/* Screenshot / pin preview */}
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-stone-400">Screenshot</p>
+                  {drawerTask.screenshot_url ? (
+                    <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-100">
+                      <div className="relative">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={drawerTask.screenshot_url} alt="Screenshot with feedback pin" className="block w-full" />
+                        <div
+                          className="task-pin absolute h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-violet-600 shadow-xl ring-8 ring-violet-500/20"
+                          style={{ '--pin-left': `${pinLeftPercent}%`, '--pin-top': `${pinTopPercent}%` } as React.CSSProperties}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="relative h-40 overflow-hidden rounded-xl border border-dashed border-stone-300 bg-gradient-to-br from-violet-50 to-stone-100">
+                      <div className="absolute left-4 right-4 top-4 rounded-xl bg-white/90 px-3 py-2 shadow-sm">
+                        <p className="text-xs font-bold text-stone-600">No screenshot captured</p>
+                        <p className="mt-0.5 truncate text-xs text-stone-400">{drawerTask.page_url}</p>
+                      </div>
+                      <div
+                        className="task-pin absolute h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-violet-600 shadow-xl"
+                        style={{ '--pin-left': `${Math.min(96, Math.max(4, pinLeftPercent))}%`, '--pin-top': `${Math.min(88, Math.max(18, pinTopPercent))}%` } as React.CSSProperties}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Status + details row */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-stone-400">Status</p>
+                    <select
+                      aria-label="Task status"
+                      value={drawerTask.status}
+                      onChange={e => moveTask(drawerTask.id, e.target.value as TaskStatus)}
+                      className="w-full rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm font-semibold text-stone-800 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                    >
+                      {TASK_STATUSES.map(s => (
+                        <option key={s} value={s}>{STATUS_LABELS[s]}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <p className="mb-1.5 text-xs font-bold uppercase tracking-widest text-stone-400">Reporter</p>
+                    <p className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800">
+                      {drawerTask.reporter_name || 'Anonymous'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Comment */}
+                <div>
+                  <p className="mb-2 text-xs font-bold uppercase tracking-widest text-stone-400">Feedback</p>
+                  <div className="rounded-xl border border-stone-100 bg-stone-50 px-4 py-3">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-800">
+                      {drawerTask.comment || drawerTask.description || 'No comment provided.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Discussion */}
+                <div>
+                  <p className="mb-3 text-xs font-bold uppercase tracking-widest text-stone-400">Discussion</p>
+                  {drawerCommentsLoading ? (
+                    <p className="text-center text-sm text-stone-400 py-4">Loading comments…</p>
+                  ) : drawerComments.length === 0 ? (
+                    <p className="text-sm text-stone-400">No comments yet.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {drawerComments.map(c => (
+                        <div key={c.id} className="rounded-xl bg-stone-50 px-4 py-3">
+                          <p className="text-sm text-stone-800">{c.message}</p>
+                          <p className="mt-1 text-xs text-stone-400">{new Date(c.created_at).toLocaleString()}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Comment input footer */}
+            <form
+              onSubmit={addDrawerComment}
+              className="flex flex-shrink-0 items-center gap-2 border-t border-stone-100 bg-white px-4 py-3"
+            >
+              <input
+                ref={commentInputRef}
+                value={drawerComment}
+                onChange={e => setDrawerComment(e.target.value)}
+                placeholder="Add a comment…"
+                className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+              />
+              <button
+                type="submit"
+                disabled={drawerSaving || !drawerComment.trim()}
+                className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-bold text-white hover:bg-stone-700 disabled:opacity-50"
+              >
+                Send
+              </button>
+            </form>
+          </aside>
+        </>
+      )}
+
+      {/* Share modal */}
       {project && showShare && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/40 p-4" onClick={() => setShowShare(false)}>
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={event => event.stopPropagation()}>
