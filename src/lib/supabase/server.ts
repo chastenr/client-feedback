@@ -74,12 +74,21 @@ export async function getAdminClient(request: Request): Promise<{ client: Supaba
     } catch {
       return serviceRoleConfigError();
     }
-    const { data: profile } = await service
+    const { data: profile, error: profileError } = await service
       .from('profiles')
       .select('role')
       .eq('id', data.user.id)
       .maybeSingle();
-    if (profile?.role === 'viewer') return jsonError('Admin access required.', 403);
+    if (!profileError && profile?.role === 'viewer') return jsonError('Admin access required.', 403);
+
+    const { data: memberships } = await service
+      .from('project_members')
+      .select('role')
+      .eq('user_id', data.user.id);
+    if (memberships?.length && memberships.every(member => member.role === 'viewer')) {
+      return jsonError('Admin access required.', 403);
+    }
+
     return { client: service, mode: 'user', user: data.user };
   }
 

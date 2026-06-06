@@ -12,6 +12,10 @@ function clientAccessError(message: string, status = 500) {
   return jsonError(message, status);
 }
 
+function isMissingProfileRole(message: string) {
+  return /role.*profiles|profiles.*role|schema cache/i.test(message);
+}
+
 async function findAuthUserByEmail(client: SupabaseClient, email: string) {
   let page = 1;
   const perPage = 100;
@@ -94,13 +98,23 @@ export async function POST(
 
   if (!userId) return jsonError('Unable to create client account.', 500);
 
-  const { error: profileError } = await result.client.from('profiles').upsert({
+  const profilePayload = {
     id: userId,
     email,
     full_name: fullName,
     role: 'viewer',
-  });
-  if (profileError) return jsonError(profileError.message, 500);
+  };
+  const { error: profileError } = await result.client.from('profiles').upsert(profilePayload);
+  if (profileError) {
+    if (!isMissingProfileRole(profileError.message)) return clientAccessError(profileError.message);
+
+    const { error: fallbackProfileError } = await result.client.from('profiles').upsert({
+      id: userId,
+      email,
+      full_name: fullName,
+    });
+    if (fallbackProfileError) return clientAccessError(fallbackProfileError.message);
+  }
 
   const { error: memberError } = await result.client
     .from('project_members')
