@@ -452,7 +452,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
               </div>
             ) : (
               <div className="grid gap-5 lg:grid-cols-[260px_minmax(0,1fr)]">
-                <aside className="space-y-4">
+                <aside className="space-y-4 lg:sticky lg:top-[150px] lg:max-h-[calc(100vh-170px)] lg:overflow-y-auto lg:pr-1">
                   <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm">
                     <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Board overview</p>
                     <div className="mt-4 grid grid-cols-3 gap-2">
@@ -541,7 +541,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                 </aside>
 
                 <div className="min-w-0">
-                  <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-3 shadow-sm md:flex-row md:items-center">
+                  <div className="mb-4 flex flex-col gap-3 rounded-2xl border border-stone-200 bg-white p-3 shadow-sm md:flex-row md:items-center lg:sticky lg:top-[150px] lg:z-10">
                     <div className="relative flex-1">
                       <input
                         value={searchQuery}
@@ -583,15 +583,15 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                     </span>
                   </div>
 
-                  <div className="kaze-board flex gap-4 overflow-x-auto pb-6">
+                  <div className="kaze-board flex gap-4 overflow-x-auto pb-4">
                     {TASK_STATUSES.map(status => (
-                      <section key={status} className="min-h-[560px] w-[310px] flex-shrink-0 rounded-2xl bg-sky-50/70 p-3">
+                      <section key={status} className="flex h-[calc(100vh-265px)] min-h-[500px] max-h-[760px] w-[310px] flex-shrink-0 flex-col rounded-2xl bg-sky-50/70 p-3">
                         <div className="mb-3 flex items-center justify-between px-1">
                           <h2 className="text-sm font-black uppercase tracking-wide text-stone-700">{STATUS_LABELS[status]}</h2>
                           <span className="rounded-lg border border-stone-200 bg-white px-2 py-1 text-xs font-black text-stone-600">{grouped[status].length}</span>
                         </div>
                         <div
-                          className="min-h-[500px] space-y-3"
+                          className="kaze-column-scroll min-h-0 flex-1 space-y-3 overflow-y-auto pr-1"
                           onDragOver={event => event.preventDefault()}
                           onDrop={event => {
                             const taskId = event.dataTransfer.getData('text/task-id');
