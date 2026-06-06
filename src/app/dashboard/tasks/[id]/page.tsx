@@ -114,19 +114,25 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
           <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
             <h2 className="mb-4 text-xs font-bold uppercase tracking-widest text-stone-400">Screenshot / Pin preview</h2>
             {task.screenshot_url ? (
-              <div className="relative overflow-auto rounded-xl border border-stone-200 bg-stone-100">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={task.screenshot_url} alt="Captured page screenshot" className="w-full max-w-none" />
-                <div
-                  className="task-pin absolute h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-[3px] border-white bg-violet-600 shadow-lg"
-                  style={{ '--pin-left': `${pinLeftPercent}%`, '--pin-top': `${pinTopPercent}%` } as React.CSSProperties}
-                />
+              <div className="overflow-hidden rounded-xl border border-stone-200 bg-stone-100">
+                <div className="relative">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={task.screenshot_url} alt="Client captured screenshot with feedback pin" className="block w-full max-w-none" />
+                  <div
+                    className="task-pin absolute h-7 w-7 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-violet-600 shadow-xl ring-8 ring-violet-500/20"
+                    style={{ '--pin-left': `${pinLeftPercent}%`, '--pin-top': `${pinTopPercent}%` } as React.CSSProperties}
+                    aria-label="Client feedback pin location"
+                  />
+                </div>
               </div>
             ) : (
-              <div className="relative h-[360px] overflow-hidden rounded-xl border border-dashed border-stone-200 bg-gradient-to-br from-violet-50 to-stone-100">
-                <div className="absolute left-4 right-4 top-4 rounded-xl bg-white/85 p-3 shadow-sm">
-                  <p className="text-sm font-bold text-stone-700">Pin location</p>
-                  <p className="mt-0.5 break-all text-xs text-stone-400">{task.page_url}</p>
+              <div className="relative h-[360px] overflow-hidden rounded-xl border border-dashed border-stone-300 bg-gradient-to-br from-violet-50 to-stone-100">
+                <div className="absolute left-4 right-4 top-4 rounded-xl bg-white/90 p-3 shadow-sm">
+                  <p className="text-sm font-bold text-stone-700">Screenshot was not captured</p>
+                  <p className="mt-1 text-xs leading-relaxed text-stone-500">
+                    This feedback only has the pin coordinates. New feedback will save the captured screenshot even if image upload fails.
+                  </p>
+                  <p className="mt-2 break-all text-xs text-stone-400">{task.page_url}</p>
                 </div>
                 <div
                   className="task-pin absolute h-8 w-8 -translate-x-1/2 -translate-y-1/2 rounded-full border-4 border-white bg-violet-600 shadow-xl"

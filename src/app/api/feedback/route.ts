@@ -114,7 +114,7 @@ export async function POST(request: Request) {
     }
   }
 
-  let screenshotUrl: string | null = null;
+  let screenshotUrl: string | null = screenshot ?? null;
   if (screenshot) {
     const image = dataUrlToBuffer(screenshot);
     if (image) {

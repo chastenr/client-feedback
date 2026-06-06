@@ -89,7 +89,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid project token.' }, { status: 404, headers: corsHeaders });
   }
 
-  let screenshotUrl: string | null = null;
+  let screenshotUrl: string | null = payload.screenshot ?? null;
 
   if (payload.screenshot) {
     const image = dataUrlToBuffer(payload.screenshot);
@@ -103,7 +103,9 @@ export async function POST(request: Request) {
           upsert: false,
         });
 
-      if (!uploadError) {
+      if (uploadError) {
+        console.error('[Gomega] Screenshot upload failed:', uploadError.message);
+      } else {
         const { data } = supabase.storage.from('feedback-screenshots').getPublicUrl(filePath);
         screenshotUrl = data.publicUrl;
       }
