@@ -102,6 +102,9 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [drawerCommentsLoading, setDrawerCommentsLoading] = useState(false);
   const [drawerComment, setDrawerComment] = useState('');
   const [drawerSaving, setDrawerSaving] = useState(false);
+  const [drawerSummary, setDrawerSummary] = useState('');
+  const [drawerSummaryAi, setDrawerSummaryAi] = useState(false);
+  const [drawerSummaryLoading, setDrawerSummaryLoading] = useState(false);
   const commentInputRef = useRef<HTMLInputElement>(null);
   const screenshotScrollRef = useRef<HTMLDivElement>(null);
   const [lightbox, setLightbox] = useState(false);
@@ -191,9 +194,12 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     setDrawerTask(task);
     setDrawerComments([]);
     setDrawerComment('');
+    setDrawerSummary('');
+    setDrawerSummaryAi(false);
     setDrawerOpen(true);
     setLightbox(false);
     setDrawerCommentsLoading(true);
+    setDrawerSummaryLoading(true);
     dashboardFetch(`/api/tasks/${task.id}`)
       .then(r => r.json().catch(() => ({})))
       .then(data => {
@@ -201,6 +207,18 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
         setDrawerCommentsLoading(false);
       })
       .catch(() => setDrawerCommentsLoading(false));
+    dashboardFetch(`/api/tasks/${task.id}/summary`)
+      .then(r => r.json().catch(() => ({})))
+      .then(data => {
+        setDrawerSummary(data.summary ?? '');
+        setDrawerSummaryAi(Boolean(data.ai));
+        setDrawerSummaryLoading(false);
+      })
+      .catch(() => {
+        setDrawerSummary('');
+        setDrawerSummaryAi(false);
+        setDrawerSummaryLoading(false);
+      });
   }
 
   function closeDrawer() {

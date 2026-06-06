@@ -279,6 +279,9 @@ export default function DashboardPage() {
                       </a>
                     </div>
                     <div className="flex flex-shrink-0 items-start gap-2">
+                      <div className="hidden h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-lg font-black text-sky-700 sm:flex">
+                        {(project.name || safeHost(project.website_url)).slice(0, 1).toUpperCase()}
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
@@ -292,9 +295,6 @@ export default function DashboardPage() {
                       >
                         ×
                       </button>
-                      <div className="hidden h-12 w-12 items-center justify-center rounded-2xl bg-sky-50 text-lg font-black text-sky-700 sm:flex">
-                        {safeHost(project.website_url).slice(0, 1).toUpperCase()}
-                      </div>
                     </div>
                   </div>
                   <div className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]">
