@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient, type User } from '@supabase/supabase
 import { NextResponse } from 'next/server';
 
 type AdminMode = 'user' | 'service-dev';
+type AuthMode = 'user';
 
 export function getAppOrigin(request?: Request) {
   const configured = process.env.NEXT_PUBLIC_APP_URL;
@@ -63,7 +64,14 @@ export async function getAdminClient(request: Request): Promise<{ client: Supaba
     const userClient = createUserClient(token);
     const { data, error } = await userClient.auth.getUser();
     if (error || !data.user) return jsonError('Admin login required.', 401);
-    return { client: createServiceClient(), mode: 'user', user: data.user };
+    const service = createServiceClient();
+    const { data: profile } = await service
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .maybeSingle();
+    if (profile?.role === 'viewer') return jsonError('Admin access required.', 403);
+    return { client: service, mode: 'user', user: data.user };
   }
 
   if (process.env.ADMIN_AUTH_DISABLED === 'true') {
@@ -71,6 +79,17 @@ export async function getAdminClient(request: Request): Promise<{ client: Supaba
   }
 
   return jsonError('Admin login required.', 401);
+}
+
+export async function getAuthenticatedClient(request: Request): Promise<{ client: SupabaseClient; mode: AuthMode; user: User } | NextResponse> {
+  const token = getBearerToken(request);
+  if (!token) return jsonError('Login required.', 401);
+
+  const userClient = createUserClient(token);
+  const { data, error } = await userClient.auth.getUser();
+  if (error || !data.user) return jsonError('Login required.', 401);
+
+  return { client: createServiceClient(), mode: 'user', user: data.user };
 }
 
 export function jsonError(message: string, status = 400) {

@@ -83,7 +83,7 @@ export default function InstallSnippetPage({ params }: { params: { id: string } 
                   ) : (
                     'the target website'
                   )}
-                  . Your client only receives the review link — they never see code.
+                  . Your client only receives the client link — they never see code.
                 </p>
               </div>
 
@@ -113,8 +113,8 @@ export default function InstallSnippetPage({ params }: { params: { id: string } 
 
           {/* Role explanation */}
           <div className="rounded-2xl border border-violet-100 bg-violet-50 px-5 py-4 text-sm text-violet-800">
-            <p className="font-bold">Admin → installs script once → shares review link</p>
-            <p className="mt-1 font-bold">Client → opens review link → clicks Feedback → leaves comment → done</p>
+            <p className="font-bold">Admin → installs script once → shares client link</p>
+            <p className="mt-1 font-bold">Client → opens client link → clicks Feedback → leaves comment → done</p>
             <p className="mt-2 text-violet-600">Clients never see script tags, Supabase, env vars, or any developer instructions.</p>
           </div>
 
@@ -184,7 +184,7 @@ export default function InstallSnippetPage({ params }: { params: { id: string } 
               </li>
               <li className="flex gap-3">
                 <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-violet-100 text-xs font-black text-violet-700">2</span>
-                Send your client the <Link href={`/dashboard/projects/${params.id}`} className="font-semibold text-violet-600 hover:underline">review link</Link> from the board. They just open the website and click Feedback.
+                Send your client the <Link href={`/dashboard/projects/${params.id}`} className="font-semibold text-violet-600 hover:underline">client link</Link> from the board. They just open the website and click Feedback.
               </li>
               <li className="flex gap-3">
                 <span className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-lg bg-violet-100 text-xs font-black text-violet-700">3</span>
