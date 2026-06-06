@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/server';
-import { getLocalProjectByToken, isLocalMode, listLocalTasks } from '@/lib/local-store';
+import { getLocalProject, getLocalProjectByToken, isLocalMode, listLocalTasks } from '@/lib/local-store';
 
 export const runtime = 'nodejs';
 
@@ -24,33 +24,33 @@ export async function GET(request: Request) {
   }
 
   if (isLocalMode()) {
-    const project = await getLocalProjectByToken(token);
+    const project = (await getLocalProjectByToken(token)) ?? (await getLocalProject(token));
     if (!project) return NextResponse.json({ tasks: [] }, { headers: cors });
     const all = await listLocalTasks(project.id);
-    const tasks = pagePath ? all.filter(t => t.page_path === pagePath || t.page_url?.includes(pagePath)) : all;
+    const tasks = pagePath ? all.filter(taskMatchesPage(pagePath)) : all;
     return NextResponse.json({ tasks: tasks.map(miniTask) }, { headers: cors });
   }
 
   const supabase = createServiceClient();
+  const projectFilters = [`public_token.eq.${token}`, `share_token.eq.${token}`];
+  if (isUuid(token)) projectFilters.push(`id.eq.${token}`);
+
   const { data: project } = await supabase
     .from('projects')
     .select('id')
-    .or(`public_token.eq.${token},share_token.eq.${token}`)
+    .or(projectFilters.join(','))
     .single();
 
   if (!project) return NextResponse.json({ tasks: [] }, { headers: cors });
 
-  let query = supabase
+  const { data } = await supabase
     .from('feedback_tasks')
-    .select('id,x,y,scroll_x,scroll_y,viewport_width,viewport_height,page_path,comment,description,reporter_name,status')
+    .select('id,x,y,scroll_x,scroll_y,viewport_width,viewport_height,page_path,page_url,comment,description,reporter_name,status')
     .eq('project_id', project.id)
-    .neq('status', 'done')
     .order('created_at', { ascending: true });
 
-  if (pagePath) query = query.eq('page_path', pagePath);
-
-  const { data } = await query;
-  return NextResponse.json({ tasks: (data ?? []).map(miniTask) }, { headers: cors });
+  const tasks = pagePath ? (data ?? []).filter(taskMatchesPage(pagePath)) : (data ?? []);
+  return NextResponse.json({ tasks: tasks.map(miniTask) }, { headers: cors });
 }
 
 function miniTask(t: Record<string, unknown>) {
@@ -66,5 +66,32 @@ function miniTask(t: Record<string, unknown>) {
     comment: t.comment || t.description,
     reporter_name: t.reporter_name,
     status: t.status,
+  };
+}
+
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+function normalizePath(value: unknown) {
+  if (!value) return '';
+
+  let path = String(value);
+  try {
+    path = new URL(path, 'https://example.com').pathname;
+  } catch {
+    path = path.split('?')[0]?.split('#')[0] ?? '';
+  }
+
+  if (!path.startsWith('/')) path = `/${path}`;
+  return path.length > 1 ? path.replace(/\/+$/, '') : path;
+}
+
+function taskMatchesPage(pagePath: string) {
+  const currentPath = normalizePath(pagePath);
+  return (task: Record<string, unknown>) => {
+    const savedPath = normalizePath(task.page_path);
+    const savedUrlPath = normalizePath(task.page_url);
+    return savedPath === currentPath || savedUrlPath === currentPath;
   };
 }
