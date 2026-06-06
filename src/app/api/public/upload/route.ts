@@ -15,6 +15,7 @@ const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
 const ALLOWED_TYPES = new Set([
   'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
   'video/mp4', 'video/webm', 'video/quicktime',
+  'application/pdf', 'text/plain',
 ]);
 
 export async function OPTIONS() {
@@ -91,5 +92,7 @@ function extFromType(mime: string) {
   if (mime.includes('mp4')) return 'mp4';
   if (mime.includes('webm')) return 'webm';
   if (mime.includes('quicktime')) return 'mov';
+  if (mime.includes('pdf')) return 'pdf';
+  if (mime.includes('plain')) return 'txt';
   return 'bin';
 }

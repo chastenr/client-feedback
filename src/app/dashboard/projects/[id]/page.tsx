@@ -199,6 +199,14 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     return /\.(mp4|webm|mov)(\?|$)/i.test(url);
   }
 
+  function isImageUrl(url: string) {
+    return /\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i.test(url);
+  }
+
+  function isPdfUrl(url: string) {
+    return /\.pdf(\?|$)/i.test(url);
+  }
+
   function getPageUrl() {
     if (!drawerTask) return '#';
     try {
@@ -715,12 +723,34 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                           </a>
                         </div>
                       </div>
+                    ) : isImageUrl(drawerTask.attachment_url) ? (
+                      <div className="overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm">
+                        <a href={drawerTask.attachment_url} target="_blank" rel="noopener noreferrer" className="block bg-stone-50">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={drawerTask.attachment_url} alt="Client attachment" className="block max-h-[280px] w-full object-contain" />
+                        </a>
+                        <div className="flex items-center justify-between gap-3 px-4 py-3">
+                          <p className="min-w-0 truncate text-sm font-semibold text-stone-700">Attached image</p>
+                          <div className="flex flex-shrink-0 gap-3">
+                            <a href={drawerTask.attachment_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-violet-600 hover:text-violet-800">
+                              View ↗
+                            </a>
+                            <a href={drawerTask.attachment_url} download target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-stone-500 hover:text-stone-700">
+                              Download ↓
+                            </a>
+                          </div>
+                        </div>
+                      </div>
                     ) : (
                       <div className="flex items-center gap-3 rounded-xl border border-stone-200 bg-white px-4 py-3 shadow-sm">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={drawerTask.attachment_url} alt="Attachment" className="h-16 w-24 flex-shrink-0 rounded-lg border border-stone-200 object-cover" />
+                        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 text-xs font-black uppercase text-stone-500">
+                          {isPdfUrl(drawerTask.attachment_url) ? 'PDF' : 'FILE'}
+                        </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-stone-700">Attached file</p>
+                          <p className="text-sm font-semibold text-stone-700">
+                            {isPdfUrl(drawerTask.attachment_url) ? 'Attached PDF' : 'Attached file'}
+                          </p>
+                          <p className="mt-0.5 truncate text-xs text-stone-400">{drawerTask.attachment_url}</p>
                           <div className="mt-2 flex gap-3">
                             <a href={drawerTask.attachment_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-violet-600 hover:text-violet-800">
                               View ↗

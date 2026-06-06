@@ -605,7 +605,7 @@
 
     var fileInput = document.createElement('input');
     fileInput.type = 'file';
-    fileInput.accept = 'image/*,video/*';
+    fileInput.accept = 'image/*,video/*,application/pdf,text/plain';
     fileInput.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none';
     attachLabel.appendChild(fileInput);
 
@@ -739,7 +739,12 @@
         var fd = new FormData();
         fd.append('project_id', projectId);
         fd.append('file', state.attachedFile);
-        var uploadRes = await fetch(appOrigin + '/api/public/upload', { method: 'POST', body: fd, mode: 'cors' });
+        var uploadRes = await fetch(appOrigin + '/api/public/upload', {
+          method: 'POST',
+          body: fd,
+          mode: 'cors',
+          headers: authHeaders()
+        });
         var uploadBody = await uploadRes.json().catch(function () { return {}; });
         if (uploadRes.ok && uploadBody.url) attachmentUrl = uploadBody.url;
         // If upload fails, still submit — just without the attachment
