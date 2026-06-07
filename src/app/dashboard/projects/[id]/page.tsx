@@ -118,6 +118,9 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [drawerSaving, setDrawerSaving] = useState(false);
   const [drawerAttachmentFile, setDrawerAttachmentFile] = useState<File | null>(null);
   const [drawerAttachmentError, setDrawerAttachmentError] = useState('');
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingCommentText, setEditingCommentText] = useState('');
+  const [editingCommentSaving, setEditingCommentSaving] = useState(false);
   const [drawerSummary, setDrawerSummary] = useState('');
   const [drawerSummaryAi, setDrawerSummaryAi] = useState(false);
   const [drawerSummaryLoading, setDrawerSummaryLoading] = useState(false);
@@ -253,6 +256,8 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     setDrawerComment('');
     setDrawerAttachmentFile(null);
     setDrawerAttachmentError('');
+    setEditingCommentId(null);
+    setEditingCommentText('');
     setDrawerSummary('');
     setDrawerSummaryAi(false);
     setDrawerOpen(true);
@@ -336,6 +341,28 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     } else {
       setDrawerAttachmentError(data.error ?? 'Unable to add comment.');
     }
+  }
+
+  async function saveEditedComment(commentId: string) {
+    if (!drawerTask || !editingCommentText.trim()) return;
+    setEditingCommentSaving(true);
+    const response = await dashboardFetch(`/api/tasks/${drawerTask.id}/comments/${commentId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: editingCommentText }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setEditingCommentSaving(false);
+
+    if (!response.ok || !data.comment) {
+      setDrawerAttachmentError(data.error ?? 'Unable to update comment.');
+      return;
+    }
+
+    setDrawerComments(prev => prev.map(comment => comment.id === commentId ? data.comment : comment));
+    setEditingCommentId(null);
+    setEditingCommentText('');
+    if (canViewActivity) loadAuditLogs();
   }
 
   function getReviewLink() {
@@ -570,6 +597,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     }
     if (log.action === 'comment_added') return 'Team comment added';
     if (log.action === 'client_comment_added') return 'Client comment added';
+    if (log.action === 'comment_updated') return 'Comment edited';
     if (log.action === 'project_url_changed') return 'Website URL changed';
     if (log.action === 'project_updated') return 'Project settings updated';
     if (log.action === 'project_deleted') return 'Project deleted';
@@ -583,6 +611,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     }
     if (log.action === 'comment_added') return `${actor} added a team comment.`;
     if (log.action === 'client_comment_added') return `${actor} replied as the client.`;
+    if (log.action === 'comment_updated') return `${actor} edited a comment.`;
     return log.summary;
   }
 
@@ -1730,11 +1759,61 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                     <div className="space-y-2">
                       {drawerComments.map(c => (
                         <div key={c.id} className="rounded-xl bg-stone-50 px-4 py-3">
-                          <div className="mb-1 flex items-center gap-2">
-                            <span className="text-xs font-bold text-stone-700">{c.author_name || 'Anonymous'}</span>
-                            <span className="text-xs text-stone-400">{new Date(c.created_at).toLocaleString()}</span>
+                          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-xs font-bold text-stone-700">{c.author_name || 'Anonymous'}</span>
+                              <span className="text-xs text-stone-400">{new Date(c.created_at).toLocaleString()}</span>
+                              {c.updated_at && (
+                                <span className="rounded-full bg-stone-100 px-2 py-0.5 text-[11px] font-bold text-stone-400">Edited</span>
+                              )}
+                            </div>
+                            {editingCommentId !== c.id && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCommentId(c.id);
+                                  setEditingCommentText(c.message);
+                                  setDrawerAttachmentError('');
+                                }}
+                                className="rounded-lg px-2 py-1 text-xs font-bold text-stone-400 hover:bg-stone-100 hover:text-violet-700"
+                              >
+                                Edit
+                              </button>
+                            )}
                           </div>
-                          {c.message && <p className="text-sm text-stone-800">{c.message}</p>}
+                          {editingCommentId === c.id ? (
+                            <div className="space-y-2">
+                              <textarea
+                                value={editingCommentText}
+                                onChange={event => setEditingCommentText(event.target.value)}
+                                className="min-h-24 w-full resize-y rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm text-stone-800 outline-none transition focus:border-violet-500 focus:ring-2 focus:ring-violet-100"
+                                autoFocus
+                              />
+                              <div className="flex flex-wrap gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => saveEditedComment(c.id)}
+                                  disabled={editingCommentSaving || !editingCommentText.trim()}
+                                  className="rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-violet-700 disabled:opacity-50"
+                                >
+                                  {editingCommentSaving ? 'Saving...' : 'Save'}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingCommentId(null);
+                                    setEditingCommentText('');
+                                  }}
+                                  disabled={editingCommentSaving}
+                                  className="rounded-lg border border-stone-200 px-3 py-1.5 text-xs font-bold text-stone-500 hover:bg-stone-100 disabled:opacity-50"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            c.message && <p className="whitespace-pre-wrap text-sm text-stone-800">{c.message}</p>
+                          )}
                           {c.attachment_url && (
                             <div className="mt-3 overflow-hidden rounded-xl border border-stone-200 bg-white">
                               {isVideoUrl(c.attachment_url) ? (
