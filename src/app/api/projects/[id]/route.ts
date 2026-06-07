@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { sendProjectDeletedEmail } from '@/lib/email';
 import { getAdminClient, jsonError } from '@/lib/supabase/server';
 import { deleteLocalProject, getLocalProject, isLocalMode } from '@/lib/local-store';
+import { sendSlackNotification } from '@/lib/slack';
 
 export const runtime = 'nodejs';
 
@@ -42,11 +44,13 @@ export async function DELETE(
 
   const { data: project } = await result.client
     .from('projects')
-    .select('id')
+    .select('id,name,website_url')
     .eq('id', params.id)
     .maybeSingle();
 
   if (!project) return jsonError('Project not found.', 404);
+  const deletedAt = new Date().toISOString();
+  const deletedBy = result.user?.email || 'Admin';
 
   const { data: tasks } = await result.client
     .from('feedback_tasks')
@@ -79,6 +83,24 @@ export async function DELETE(
     .delete()
     .eq('id', params.id);
   if (projectError) return jsonError(projectError.message, 500);
+
+  await Promise.allSettled([
+    sendSlackNotification({
+      type: 'project_deleted',
+      projectName: project.name,
+      projectUrl: project.website_url,
+      authorName: deletedBy,
+      deletedAt,
+      message: `${deletedBy} deleted ${project.name}. Removed ${taskIds.length} task${taskIds.length === 1 ? '' : 's'} and related comments/members.`,
+    }),
+    sendProjectDeletedEmail({
+      projectName: project.name,
+      projectUrl: project.website_url,
+      deletedBy,
+      deletedAt,
+      taskCount: taskIds.length,
+    }),
+  ]);
 
   return NextResponse.json({ ok: true });
 }
