@@ -709,7 +709,11 @@
         canvas = await h2c(document.documentElement, {
           useCORS: true, allowTaint: false, logging: false,
           scale: Math.min(1, window.devicePixelRatio || 1),
-          x: window.scrollX || 0, y: window.scrollY || 0,
+          // Use the scroll position captured at PIN time, not submit time.
+          // By submission the page may have scrolled (e.g. browser scrolls to
+          // focus the textarea), which would produce a screenshot of the wrong area.
+          x: state.selected ? (state.selected.scrollX || 0) : (window.scrollX || 0),
+          y: state.selected ? (state.selected.scrollY || 0) : (window.scrollY || 0),
           width: window.innerWidth, height: window.innerHeight,
           windowWidth: window.innerWidth, windowHeight: window.innerHeight,
           ignoreElements: function (el) { return el === host || (host.contains && host.contains(el)); },
