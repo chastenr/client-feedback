@@ -15,6 +15,16 @@ export async function GET(
   const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
 
+  if (!result.isSuperAdmin && result.user) {
+    const { data: membership } = await result.client
+      .from('project_members')
+      .select('id')
+      .eq('project_id', params.id)
+      .eq('user_id', result.user.id)
+      .maybeSingle();
+    if (!membership) return jsonError('You do not have access to this project.', 403);
+  }
+
   const { data, error } = await result.client
     .from('feedback_tasks')
     .select('*, projects(id,name,website_url,public_token,share_token)')

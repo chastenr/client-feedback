@@ -33,6 +33,18 @@ async function ensureProject(client: SupabaseClient, id: string) {
   return data;
 }
 
+async function ensureMemberAdminAccess(client: SupabaseClient, projectId: string, userId: string | undefined, isSuperAdmin: boolean) {
+  if (isSuperAdmin) return true;
+  if (!userId) return false;
+  const { data } = await client
+    .from('project_members')
+    .select('role')
+    .eq('project_id', projectId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  return Boolean(data && ['owner', 'admin'].includes(data.role));
+}
+
 export async function GET(
   request: Request,
   { params }: { params: { id: string } },
@@ -42,6 +54,9 @@ export async function GET(
 
   const project = await ensureProject(result.client, params.id);
   if (!project) return jsonError('Project not found.', 404);
+  if (!(await ensureMemberAdminAccess(result.client, params.id, result.user?.id, result.isSuperAdmin))) {
+    return jsonError('Project admin access required.', 403);
+  }
 
   const { data, error } = await result.client
     .from('project_members')
@@ -67,6 +82,9 @@ export async function POST(
 
   const project = await ensureProject(result.client, params.id);
   if (!project) return jsonError('Project not found.', 404);
+  if (!(await ensureMemberAdminAccess(result.client, params.id, result.user?.id, result.isSuperAdmin))) {
+    return jsonError('Project admin access required.', 403);
+  }
 
   const email = parsed.data.email.toLowerCase();
   const fullName = parsed.data.fullName || null;
