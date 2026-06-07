@@ -163,6 +163,62 @@
   box-shadow: 0 8px 22px rgba(52, 120, 246, 0.45);
 }
 
+@keyframes kaze-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.kaze-workspace > div,
+.kaze-workspace article,
+.kaze-workspace aside > div,
+.kaze-workspace section > div {
+  animation: kaze-fade-up 420ms ease both;
+}
+
+.kaze-workspace article,
+.kaze-workspace button,
+.kaze-workspace a,
+.kaze-workspace input,
+.kaze-workspace select,
+.kaze-workspace textarea {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    opacity 180ms ease;
+}
+
+.kaze-workspace button:active,
+.kaze-workspace a:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.kaze-workspace article:hover {
+  transform: translateY(-2px);
+}
+
+.kaze-workspace .fixed form,
+.kaze-workspace .kaze-drawer {
+  animation: kaze-fade-up 220ms ease both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kaze-workspace *,
+  .kaze-workspace *::before,
+  .kaze-workspace *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 :root[data-kaze-theme='dark'] body {
   background: #0f172a;
   color: #e5edf8;
