@@ -700,9 +700,10 @@
     try {
       var h2c = await loadHtml2Canvas();
       if (!h2c) return null;
-      // Hide the entire widget host (including shadow DOM) so html2canvas doesn't
-      // render the open modal form on top of the page capture.
-      host.style.visibility = 'hidden';
+      // Remove the widget host from the render tree during capture so html2canvas
+      // never encounters the open modal, shadow DOM, or any file inputs inside it.
+      var prevDisplay = host.style.display;
+      host.style.display = 'none';
       var canvas;
       try {
         canvas = await h2c(document.documentElement, {
@@ -712,12 +713,19 @@
           width: window.innerWidth, height: window.innerHeight,
           windowWidth: window.innerWidth, windowHeight: window.innerHeight,
           ignoreElements: function (el) { return el === host || (host.contains && host.contains(el)); },
+          onclone: function (clonedDoc) {
+            var clonedHost = clonedDoc.getElementById('kaze-widget-host');
+            if (clonedHost) clonedHost.remove();
+          },
         });
       } finally {
-        host.style.visibility = '';
+        host.style.display = prevDisplay;
       }
       return canvas.toDataURL('image/jpeg', 0.65);
-    } catch (_) { return null; }
+    } catch (err) {
+      console.warn('[Kaze] Screenshot capture failed:', err && err.message ? err.message : err);
+      return null;
+    }
   }
 
   function humanizeError(status, body) {

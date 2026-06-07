@@ -109,6 +109,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
   const [auditLogsLoading, setAuditLogsLoading] = useState(false);
   const [auditNeedsMigration, setAuditNeedsMigration] = useState(false);
+  const [adminAccessToken, setAdminAccessToken] = useState('');
 
   // Drawer state
   const [drawerTask, setDrawerTask] = useState<FeedbackTask | null>(null);
@@ -159,6 +160,14 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const supabase = createBrowserSupabaseClient();
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session?.access_token) setAdminAccessToken(data.session.access_token);
+    });
+  }, []);
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
@@ -638,6 +647,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     try {
       const u = new URL(drawerTask.page_url);
       u.searchParams.set('feedback', '1');
+      if (adminAccessToken) u.searchParams.set('gomega_client_token', adminAccessToken);
       return u.toString();
     } catch {
       return drawerTask.page_url;
