@@ -13,6 +13,26 @@ export async function GET(request: Request) {
   const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
 
+  if (!result.isSuperAdmin && result.user) {
+    const { data: memberships, error: memberError } = await result.client
+      .from('project_members')
+      .select('project_id')
+      .eq('user_id', result.user.id);
+    if (memberError) return jsonError(memberError.message, 500);
+
+    const projectIds = (memberships ?? []).map(member => member.project_id).filter(Boolean);
+    if (projectIds.length === 0) return NextResponse.json({ projects: [] });
+
+    const { data, error } = await result.client
+      .from('projects')
+      .select('id,name,client_name,website_url,allowed_origin,widget_last_seen_at,public_token,share_token,created_by,created_at')
+      .in('id', projectIds)
+      .order('created_at', { ascending: false });
+
+    if (error) return jsonError(error.message, 500);
+    return NextResponse.json({ projects: data ?? [] });
+  }
+
   const { data, error } = await result.client
     .from('projects')
     .select('id,name,client_name,website_url,allowed_origin,widget_last_seen_at,public_token,share_token,created_by,created_at')

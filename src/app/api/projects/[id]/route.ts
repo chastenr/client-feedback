@@ -21,6 +21,16 @@ export async function GET(
   const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
 
+  if (!result.isSuperAdmin && result.user) {
+    const { data: membership } = await result.client
+      .from('project_members')
+      .select('id')
+      .eq('project_id', params.id)
+      .eq('user_id', result.user.id)
+      .maybeSingle();
+    if (!membership) return jsonError('You do not have access to this project.', 403);
+  }
+
   const { data, error } = await result.client
     .from('projects')
     .select('id,name,client_name,website_url,allowed_origin,widget_last_seen_at,public_token,share_token,created_by,created_at')
@@ -60,6 +70,18 @@ export async function PATCH(
 
   const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
+
+  if (!result.isSuperAdmin && result.user) {
+    const { data: membership } = await result.client
+      .from('project_members')
+      .select('id,role')
+      .eq('project_id', params.id)
+      .eq('user_id', result.user.id)
+      .maybeSingle();
+    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+      return jsonError('Project admin access required.', 403);
+    }
+  }
 
   const { data: before } = await result.client
     .from('projects')
@@ -121,6 +143,18 @@ export async function DELETE(
 
   const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
+
+  if (!result.isSuperAdmin && result.user) {
+    const { data: membership } = await result.client
+      .from('project_members')
+      .select('id,role')
+      .eq('project_id', params.id)
+      .eq('user_id', result.user.id)
+      .maybeSingle();
+    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+      return jsonError('Project admin access required.', 403);
+    }
+  }
 
   const { data: project } = await result.client
     .from('projects')
