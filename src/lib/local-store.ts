@@ -241,7 +241,12 @@ export async function updateLocalTask(id: string, updates: { status?: TaskStatus
   return withProject(db.tasks[index], project);
 }
 
-export async function createLocalComment(taskId: string, message: string, authorName?: string | null) {
+export async function createLocalComment(
+  taskId: string,
+  message: string,
+  authorName?: string | null,
+  attachment?: { url?: string | null; name?: string | null; type?: string | null },
+) {
   const db = await readDb();
   if (!db.tasks.some(task => task.id === taskId)) return null;
   const comment: TaskComment = {
@@ -250,6 +255,9 @@ export async function createLocalComment(taskId: string, message: string, author
     user_id: null,
     author_name: authorName ?? null,
     message,
+    attachment_url: attachment?.url ?? null,
+    attachment_name: attachment?.name ?? null,
+    attachment_type: attachment?.type ?? null,
     created_at: new Date().toISOString(),
   };
   db.comments.push(comment);

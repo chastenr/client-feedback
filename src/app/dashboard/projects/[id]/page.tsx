@@ -116,10 +116,13 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [drawerCommentsLoading, setDrawerCommentsLoading] = useState(false);
   const [drawerComment, setDrawerComment] = useState('');
   const [drawerSaving, setDrawerSaving] = useState(false);
+  const [drawerAttachmentFile, setDrawerAttachmentFile] = useState<File | null>(null);
+  const [drawerAttachmentError, setDrawerAttachmentError] = useState('');
   const [drawerSummary, setDrawerSummary] = useState('');
   const [drawerSummaryAi, setDrawerSummaryAi] = useState(false);
   const [drawerSummaryLoading, setDrawerSummaryLoading] = useState(false);
   const commentInputRef = useRef<HTMLInputElement>(null);
+  const commentFileInputRef = useRef<HTMLInputElement>(null);
   const screenshotScrollRef = useRef<HTMLDivElement>(null);
   const [lightbox, setLightbox] = useState(false);
 
@@ -241,13 +244,15 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     });
-    if (response.ok) loadAuditLogs();
+    if (response.ok && canViewActivity) loadAuditLogs();
   }
 
   function openDrawer(task: FeedbackTask) {
     setDrawerTask(task);
     setDrawerComments([]);
     setDrawerComment('');
+    setDrawerAttachmentFile(null);
+    setDrawerAttachmentError('');
     setDrawerSummary('');
     setDrawerSummaryAi(false);
     setDrawerOpen(true);
@@ -282,19 +287,54 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
 
   async function addDrawerComment(event: React.FormEvent) {
     event.preventDefault();
-    if (!drawerComment.trim() || !drawerTask) return;
+    if ((!drawerComment.trim() && !drawerAttachmentFile) || !drawerTask || !project) return;
     setDrawerSaving(true);
+    setDrawerAttachmentError('');
+
+    let attachmentPayload: {
+      attachmentUrl?: string | null;
+      attachmentName?: string | null;
+      attachmentType?: string | null;
+    } = {};
+
+    if (drawerAttachmentFile) {
+      const uploadForm = new FormData();
+      uploadForm.append('project_id', project.share_token ?? project.public_token);
+      uploadForm.append('file', drawerAttachmentFile);
+      const uploadResponse = await dashboardFetch('/api/public/upload', {
+        method: 'POST',
+        body: uploadForm,
+      });
+      const uploadData = await uploadResponse.json().catch(() => ({}));
+
+      if (!uploadResponse.ok || !uploadData.url) {
+        setDrawerSaving(false);
+        setDrawerAttachmentError(uploadData.error ?? 'Unable to upload attachment.');
+        return;
+      }
+
+      attachmentPayload = {
+        attachmentUrl: uploadData.url,
+        attachmentName: drawerAttachmentFile.name,
+        attachmentType: drawerAttachmentFile.type,
+      };
+    }
+
     const response = await dashboardFetch(`/api/tasks/${drawerTask.id}/comments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: drawerComment }),
+      body: JSON.stringify({ message: drawerComment, ...attachmentPayload }),
     });
     const data = await response.json().catch(() => ({}));
     setDrawerSaving(false);
     if (response.ok && data.comment) {
       setDrawerComments(prev => [...prev, data.comment]);
       setDrawerComment('');
-      loadAuditLogs();
+      setDrawerAttachmentFile(null);
+      if (commentFileInputRef.current) commentFileInputRef.current.value = '';
+      if (canViewActivity) loadAuditLogs();
+    } else {
+      setDrawerAttachmentError(data.error ?? 'Unable to add comment.');
     }
   }
 
@@ -511,11 +551,47 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     return id.slice(0, 8);
   }
 
-  function actionLabel(action: string) {
-    return action
-      .split('_')
-      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(' ');
+  function actorLabel(log: AuditLog) {
+    return log.actor_name || log.actor_email || 'System';
+  }
+
+  function statusLabel(value: unknown) {
+    return typeof value === 'string' && value in STATUS_LABELS
+      ? STATUS_LABELS[value as TaskStatus]
+      : typeof value === 'string'
+        ? value
+        : 'Unknown';
+  }
+
+  function friendlyLogTitle(log: AuditLog) {
+    if (log.action === 'task_status_changed') {
+      const nextStatus = statusLabel(log.metadata?.after_status);
+      return `Moved task to ${nextStatus}`;
+    }
+    if (log.action === 'comment_added') return 'Team comment added';
+    if (log.action === 'client_comment_added') return 'Client comment added';
+    if (log.action === 'project_url_changed') return 'Website URL changed';
+    if (log.action === 'project_updated') return 'Project settings updated';
+    if (log.action === 'project_deleted') return 'Project deleted';
+    return 'Project activity';
+  }
+
+  function friendlyLogSummary(log: AuditLog) {
+    const actor = actorLabel(log);
+    if (log.action === 'task_status_changed') {
+      return `${actor} moved this task from ${statusLabel(log.metadata?.before_status)} to ${statusLabel(log.metadata?.after_status)}.`;
+    }
+    if (log.action === 'comment_added') return `${actor} added a team comment.`;
+    if (log.action === 'client_comment_added') return `${actor} replied as the client.`;
+    return log.summary;
+  }
+
+  function logIcon(log: AuditLog): IconName {
+    if (log.action.includes('comment')) return 'feedback';
+    if (log.action.includes('url')) return 'external';
+    if (log.action.includes('deleted')) return 'settings';
+    if (log.action.includes('status')) return 'board';
+    return 'settings';
   }
 
   function getPageUrl() {
@@ -996,10 +1072,10 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
             <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Project history</p>
-                  <h2 className="mt-1 text-lg font-black text-stone-900">Activity log</h2>
+                  <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Admin only</p>
+                  <h2 className="mt-1 text-lg font-black text-stone-900">Activity</h2>
                   <p className="mt-1 text-sm leading-6 text-stone-500">
-                    Track important changes like URL updates, task moves, comments, and project deletion alerts.
+                    A simple timeline of important project changes: task moves, comments, URL updates, and removals.
                   </p>
                 </div>
                 <button
@@ -1027,43 +1103,44 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                 ) : auditLogs.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-stone-200 bg-stone-50 p-10 text-center">
                     <p className="text-sm font-bold text-stone-600">No activity recorded yet.</p>
-                    <p className="mt-1 text-sm text-stone-400">Future URL changes, comments, and task updates will show here.</p>
+                    <p className="mt-1 text-sm text-stone-400">New task moves, comments, and URL changes will appear here.</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white">
+                  <div className="space-y-3">
                     {auditLogs.map(log => (
-                      <article key={log.id} className="grid gap-3 px-4 py-4 sm:grid-cols-[150px_minmax(0,1fr)]">
-                        <div>
-                          <p className="text-xs font-bold uppercase tracking-widest text-stone-400">{actionLabel(log.action)}</p>
-                          <p className="mt-1 text-xs text-stone-400">{new Date(log.created_at).toLocaleString()}</p>
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700">
-                              {log.actor_name || log.actor_email || 'System'}
-                            </span>
-                            {log.task_id && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const task = tasks.find(item => item.id === log.task_id);
-                                  if (task) openDrawer(task);
-                                }}
-                                className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-bold text-stone-600 hover:bg-stone-200"
-                              >
-                                Task #{shortId(log.task_id)}
-                              </button>
-                            )}
+                      <article key={log.id} className="rounded-2xl border border-stone-200 bg-white px-4 py-4 shadow-sm">
+                        <div className="flex gap-3">
+                          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+                            <Icon name={logIcon(log)} className="h-5 w-5" />
                           </div>
-                          <p className="mt-2 text-sm leading-6 text-stone-800">{log.summary}</p>
-                          {log.metadata && Object.keys(log.metadata).length > 0 && (
-                            <details className="mt-2 rounded-xl bg-stone-50 px-3 py-2 text-xs text-stone-500">
-                              <summary className="cursor-pointer font-bold text-stone-600">View metadata</summary>
-                              <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-5">
-                                {JSON.stringify(log.metadata, null, 2)}
-                              </pre>
-                            </details>
-                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="min-w-0">
+                                <h3 className="text-sm font-black text-stone-900">{friendlyLogTitle(log)}</h3>
+                                <p className="mt-1 text-sm leading-6 text-stone-600">{friendlyLogSummary(log)}</p>
+                              </div>
+                              <p className="flex-shrink-0 text-xs font-semibold text-stone-400">
+                                {new Date(log.created_at).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-bold text-stone-600">
+                                By {actorLabel(log)}
+                              </span>
+                              {log.task_id && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const task = tasks.find(item => item.id === log.task_id);
+                                    if (task) openDrawer(task);
+                                  }}
+                                  className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700 hover:bg-sky-100"
+                                >
+                                  Open task #{shortId(log.task_id)}
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </article>
                     ))}
@@ -1657,7 +1734,37 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                             <span className="text-xs font-bold text-stone-700">{c.author_name || 'Anonymous'}</span>
                             <span className="text-xs text-stone-400">{new Date(c.created_at).toLocaleString()}</span>
                           </div>
-                          <p className="text-sm text-stone-800">{c.message}</p>
+                          {c.message && <p className="text-sm text-stone-800">{c.message}</p>}
+                          {c.attachment_url && (
+                            <div className="mt-3 overflow-hidden rounded-xl border border-stone-200 bg-white">
+                              {isVideoUrl(c.attachment_url) ? (
+                                <video src={c.attachment_url} controls className="block max-h-48 w-full bg-stone-950" preload="metadata" />
+                              ) : isImageUrl(c.attachment_url) ? (
+                                <a href={c.attachment_url} target="_blank" rel="noopener noreferrer" className="block bg-stone-100">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={c.attachment_url} alt={c.attachment_name || 'Comment attachment'} className="block max-h-48 w-full object-contain" />
+                                </a>
+                              ) : (
+                                <div className="flex items-center gap-3 px-3 py-3">
+                                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-stone-100 text-xs font-black text-stone-500">
+                                    {isPdfUrl(c.attachment_url) ? 'PDF' : 'FILE'}
+                                  </div>
+                                  <p className="min-w-0 truncate text-sm font-semibold text-stone-700">{c.attachment_name || 'Attached file'}</p>
+                                </div>
+                              )}
+                              <div className="flex items-center justify-between gap-3 border-t border-stone-100 px-3 py-2">
+                                <p className="min-w-0 truncate text-xs font-bold text-stone-500">{c.attachment_name || 'Attachment'}</p>
+                                <div className="flex flex-shrink-0 gap-3">
+                                  <a href={c.attachment_url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-violet-600 hover:text-violet-800">
+                                    View ↗
+                                  </a>
+                                  <a href={c.attachment_url} download target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-stone-500 hover:text-stone-700">
+                                    Download ↓
+                                  </a>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1669,22 +1776,74 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
             {/* Comment input footer */}
             <form
               onSubmit={addDrawerComment}
-              className="flex flex-shrink-0 items-center gap-2 border-t border-stone-100 bg-white px-4 py-3"
+              className="flex flex-shrink-0 flex-col gap-2 border-t border-stone-100 bg-white px-4 py-3"
             >
-              <input
-                ref={commentInputRef}
-                value={drawerComment}
-                onChange={e => setDrawerComment(e.target.value)}
-                placeholder="Add a comment…"
-                className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
-              />
-              <button
-                type="submit"
-                disabled={drawerSaving || !drawerComment.trim()}
-                className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-bold text-white hover:bg-stone-700 disabled:opacity-50"
-              >
-                Send
-              </button>
+              {drawerAttachmentFile && (
+                <div className="flex items-center justify-between gap-3 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-bold text-stone-700">{drawerAttachmentFile.name}</p>
+                    <p className="text-[11px] text-stone-400">{(drawerAttachmentFile.size / 1024 / 1024).toFixed(1)} MB</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDrawerAttachmentFile(null);
+                      setDrawerAttachmentError('');
+                      if (commentFileInputRef.current) commentFileInputRef.current.value = '';
+                    }}
+                    className="rounded-lg px-2 py-1 text-xs font-black text-stone-400 hover:bg-stone-100 hover:text-red-500"
+                    aria-label="Remove attachment"
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+              {drawerAttachmentError && (
+                <p className="rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{drawerAttachmentError}</p>
+              )}
+              <div className="flex items-center gap-2">
+                <input
+                  ref={commentFileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml,video/mp4,video/webm,video/quicktime,application/pdf,text/plain"
+                  className="hidden"
+                  onChange={event => {
+                    const file = event.target.files?.[0] ?? null;
+                    setDrawerAttachmentError('');
+                    if (file && file.size > 50 * 1024 * 1024) {
+                      setDrawerAttachmentFile(null);
+                      setDrawerAttachmentError('File is too large. Maximum size is 50 MB.');
+                      return;
+                    }
+                    setDrawerAttachmentFile(file);
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => commentFileInputRef.current?.click()}
+                  className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-stone-200 bg-stone-50 text-stone-500 hover:bg-stone-100 hover:text-violet-700"
+                  title="Attach file"
+                  aria-label="Attach file"
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m21.4 11.6-8.5 8.5a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 1 1-2.8-2.8l8.5-8.5" />
+                  </svg>
+                </button>
+                <input
+                  ref={commentInputRef}
+                  value={drawerComment}
+                  onChange={e => setDrawerComment(e.target.value)}
+                  placeholder="Add a comment…"
+                  className="min-w-0 flex-1 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                />
+                <button
+                  type="submit"
+                  disabled={drawerSaving || (!drawerComment.trim() && !drawerAttachmentFile)}
+                  className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-bold text-white hover:bg-stone-700 disabled:opacity-50"
+                >
+                  {drawerSaving ? 'Sending...' : 'Send'}
+                </button>
+              </div>
             </form>
           </aside>
         </>

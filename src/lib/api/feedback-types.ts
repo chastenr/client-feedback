@@ -79,5 +79,8 @@ export interface TaskComment {
   user_id: string | null;
   author_name: string | null;
   message: string;
+  attachment_url?: string | null;
+  attachment_name?: string | null;
+  attachment_type?: string | null;
   created_at: string;
 }

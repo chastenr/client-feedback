@@ -108,5 +108,11 @@ export const assigneeSchema = z.object({
 });
 
 export const commentSchema = z.object({
-  message: z.string().trim().min(1).max(5000),
+  message: z.string().trim().max(5000).default(''),
+  attachmentUrl: z.string().url().max(2048).optional().nullable(),
+  attachmentName: z.string().trim().max(240).optional().nullable(),
+  attachmentType: z.string().trim().max(120).optional().nullable(),
+}).refine(data => data.message.length > 0 || Boolean(data.attachmentUrl), {
+  message: 'Comment or attachment is required.',
+  path: ['message'],
 });

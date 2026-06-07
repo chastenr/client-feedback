@@ -21,7 +21,11 @@ export async function POST(
   if (!parsed.success) return jsonError('Invalid comment.', 422);
 
   if (isLocalMode()) {
-    const comment = await createLocalComment(params.id, parsed.data.message, 'Admin');
+    const comment = await createLocalComment(params.id, parsed.data.message, 'Admin', {
+      url: parsed.data.attachmentUrl,
+      name: parsed.data.attachmentName,
+      type: parsed.data.attachmentType,
+    });
     if (!comment) return jsonError('Task not found.', 404);
     const task = await getLocalTask(params.id);
     if (task) {
@@ -33,8 +37,8 @@ export async function POST(
         actor_name: 'Admin',
         actor_email: null,
         action: 'comment_added',
-        summary: 'Admin commented on a task.',
-        metadata: { message: parsed.data.message },
+        summary: parsed.data.attachmentUrl ? 'Admin added a comment with an attachment.' : 'Admin commented on a task.',
+        metadata: { message: parsed.data.message, attachment_url: parsed.data.attachmentUrl ?? null },
       });
     }
     return NextResponse.json({ comment, localMode: true }, { status: 201 });
@@ -57,6 +61,9 @@ export async function POST(
       user_id: result.user?.id ?? null,
       author_name: authorName,
       message: parsed.data.message,
+      attachment_url: parsed.data.attachmentUrl ?? null,
+      attachment_name: parsed.data.attachmentName ?? null,
+      attachment_type: parsed.data.attachmentType ?? null,
     })
     .select('*')
     .single();
@@ -70,8 +77,10 @@ export async function POST(
       user: result.user,
       actorName: authorName,
       action: 'comment_added',
-      summary: `${authorName} commented on a task.`,
-      metadata: { message: parsed.data.message },
+      summary: parsed.data.attachmentUrl
+        ? `${authorName} added a comment with an attachment.`
+        : `${authorName} commented on a task.`,
+      metadata: { message: parsed.data.message, attachment_url: parsed.data.attachmentUrl ?? null },
     });
   }
   return NextResponse.json({ comment: data }, { status: 201 });
