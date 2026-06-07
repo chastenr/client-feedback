@@ -56,7 +56,7 @@ export const updateProjectSchema = createProjectSchema.partial().refine(data => 
 
 export const clientAccessSchema = z.object({
   email: z.string().trim().email().max(180),
-  username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]+$/, 'Use letters, numbers, dots, dashes, or underscores only.').min(3).max(40).optional().or(z.literal('')).nullable(),
+  username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]+$/, 'Use letters, numbers, dots, dashes, or underscores only.').min(3).max(40),
   password: z.string().min(6).max(120),
   fullName: z.string().trim().max(140).optional().nullable(),
 });

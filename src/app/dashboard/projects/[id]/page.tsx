@@ -403,7 +403,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         email: clientEmail,
-        username: clientUsername || null,
+        username: clientUsername,
         password: clientPassword,
         fullName: clientFullName || null,
       }),
@@ -1449,17 +1449,18 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                 </label>
 
                 <label className="block text-sm font-semibold text-stone-700">
-                  Username
+                  Username <span className="text-red-500">*</span>
                   <input
                     value={clientUsername}
                     onChange={event => setClientUsername(event.target.value.toLowerCase())}
+                    required
                     className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
                     placeholder="short-name"
                     pattern="[a-z0-9._-]{3,40}"
                     title="Use 3-40 lowercase letters, numbers, dots, dashes, or underscores."
                   />
                   <span className="mt-1 block text-xs font-normal text-stone-400">
-                    Optional. Clients can log in with this instead of typing their email.
+                    Clients can log in with this instead of typing their email.
                   </span>
                 </label>
 
