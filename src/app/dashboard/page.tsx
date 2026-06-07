@@ -351,9 +351,23 @@ export default function DashboardPage() {
                         setChangeOriginValue(project.allowed_origin ?? '');
                         setChangeUrlConfirmText('');
                       }}
-                      className="rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-stone-600 hover:bg-stone-50"
+                      className="inline-flex h-11 w-11 items-center justify-center rounded-xl border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 hover:text-violet-700"
+                      title="Change project URL"
+                      aria-label={`Change URL for ${project.name}`}
                     >
-                      URL
+                      <svg
+                        viewBox="0 0 24 24"
+                        aria-hidden="true"
+                        className="h-4.5 w-4.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M10 13a5 5 0 0 0 7.1 0l2-2a5 5 0 0 0-7.1-7.1l-1.1 1.1" />
+                        <path d="M14 11a5 5 0 0 0-7.1 0l-2 2A5 5 0 0 0 12 20.1l1.1-1.1" />
+                      </svg>
                     </button>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 text-xs font-semibold text-stone-400">

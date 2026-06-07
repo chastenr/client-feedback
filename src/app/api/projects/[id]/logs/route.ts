@@ -15,6 +15,19 @@ export async function GET(
   const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
 
+  if (result.user) {
+    const { data: membership } = await result.client
+      .from('project_members')
+      .select('role')
+      .eq('project_id', params.id)
+      .eq('user_id', result.user.id)
+      .maybeSingle();
+
+    if (!membership || !['owner', 'admin'].includes(membership.role)) {
+      return NextResponse.json({ error: 'Admin access required.' }, { status: 403 });
+    }
+  }
+
   const { data, error } = await result.client
     .from('audit_logs')
     .select('*')

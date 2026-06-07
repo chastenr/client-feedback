@@ -13,6 +13,7 @@ import {
 import { dashboardFetch } from '@/lib/api/client';
 import ThemeToggle from '@/components/ThemeToggle';
 import type { AuditLog } from '@/lib/audit';
+import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 
 type Tab = 'tasks' | 'install' | 'logs' | 'settings';
 
@@ -69,6 +70,8 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [project, setProject] = useState<Project | null>(null);
   const [tasks, setTasks] = useState<FeedbackTask[]>([]);
   const [members, setMembers] = useState<ProjectMember[]>([]);
+  const [localMode, setLocalMode] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [copiedReviewLink, setCopiedReviewLink] = useState(false);
@@ -134,7 +137,10 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     const membersData = await membersResponse.json().catch(() => ({}));
     const slackData = await slackResponse.json().catch(() => ({}));
     if (!projectResponse.ok) setError(projectData.error ?? 'Unable to load project.');
-    else setProject(projectData.project);
+    else {
+      setProject(projectData.project);
+      setLocalMode(Boolean(projectData.localMode));
+    }
     if (!tasksResponse.ok) setError(tasksData.error ?? 'Unable to load tasks.');
     else setTasks(tasksData.tasks ?? []);
     if (membersResponse.ok) setMembers(membersData.members ?? []);
@@ -145,6 +151,17 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    const supabase = createBrowserSupabaseClient();
+    if (!supabase) {
+      setLocalMode(true);
+      return;
+    }
+    supabase.auth.getSession().then(({ data }) => {
+      setCurrentUserId(data.session?.user.id ?? null);
+    });
+  }, []);
 
   const loadAuditLogs = useCallback(async () => {
     setAuditLogsLoading(true);
@@ -219,11 +236,12 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   async function moveTask(taskId: string, status: TaskStatus) {
     setTasks(prev => prev.map(task => task.id === taskId ? { ...task, status } : task));
     if (drawerTask?.id === taskId) setDrawerTask(prev => prev ? { ...prev, status } : prev);
-    await dashboardFetch(`/api/tasks/${taskId}/status`, {
+    const response = await dashboardFetch(`/api/tasks/${taskId}/status`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status }),
     });
+    if (response.ok) loadAuditLogs();
   }
 
   function openDrawer(task: FeedbackTask) {
@@ -276,6 +294,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     if (response.ok && data.comment) {
       setDrawerComments(prev => [...prev, data.comment]);
       setDrawerComment('');
+      loadAuditLogs();
     }
   }
 
@@ -445,12 +464,21 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const widgetBase = getWidgetBase();
   const projectToken = project ? (project.share_token ?? project.public_token) : 'PROJECT_ID';
 
+  const currentProjectRole = members.find(member => member.user_id === currentUserId)?.role ?? null;
+  const canViewActivity = localMode || currentProjectRole === 'owner' || currentProjectRole === 'admin';
+
   const tabs: { id: Tab; label: string; icon: IconName }[] = [
     { id: 'tasks', label: 'Task Board', icon: 'board' },
     { id: 'install', label: 'Integrations', icon: 'install' },
-    { id: 'logs', label: 'Activity', icon: 'feedback' },
+    ...(canViewActivity ? [{ id: 'logs' as const, label: 'Activity', icon: 'feedback' as const }] : []),
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ];
+
+  useEffect(() => {
+    if (activeTab === 'logs' && !canViewActivity) {
+      setActiveTab('tasks');
+    }
+  }, [activeTab, canViewActivity]);
 
   const pinLeftPercent = drawerTask
     ? Math.min(100, Math.max(0, (Number(drawerTask.x) / drawerTask.viewport_width) * 100))
