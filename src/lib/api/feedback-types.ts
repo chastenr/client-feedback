@@ -83,4 +83,5 @@ export interface TaskComment {
   attachment_name?: string | null;
   attachment_type?: string | null;
   created_at: string;
+  updated_at?: string | null;
 }

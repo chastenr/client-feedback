@@ -264,3 +264,16 @@ export async function createLocalComment(
   await writeDb(db);
   return comment;
 }
+
+export async function updateLocalComment(taskId: string, commentId: string, message: string) {
+  const db = await readDb();
+  const index = db.comments.findIndex(comment => comment.id === commentId && comment.task_id === taskId);
+  if (index === -1) return null;
+  db.comments[index] = {
+    ...db.comments[index],
+    message,
+    updated_at: new Date().toISOString(),
+  };
+  await writeDb(db);
+  return db.comments[index];
+}
