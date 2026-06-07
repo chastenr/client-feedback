@@ -10,6 +10,18 @@ export async function DELETE(
   const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
 
+  if (!result.isSuperAdmin && result.user) {
+    const { data: requester } = await result.client
+      .from('project_members')
+      .select('role')
+      .eq('project_id', params.id)
+      .eq('user_id', result.user.id)
+      .maybeSingle();
+    if (!requester || !['owner', 'admin'].includes(requester.role)) {
+      return jsonError('Project admin access required.', 403);
+    }
+  }
+
   const { data: member } = await result.client
     .from('project_members')
     .select('id,role')
