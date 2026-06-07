@@ -67,7 +67,7 @@
   try { sessionStorage.setItem('kaze_review', '1'); } catch (_) {}
 
   // ─── State ─────────────────────────────────────────────────────────────────
-  var state = { active: false, selected: null, hoverEl: null, pinCount: 0, attachedFile: null, submitting: false };
+  var state = { active: false, selected: null, hoverEl: null, pinCount: 0, attachedFile: null, submitting: false, pendingScreenshot: null };
 
   // ─── Shadow DOM ────────────────────────────────────────────────────────────
   var host = document.createElement('div');
@@ -521,6 +521,9 @@
       elementHeight: rect ? rect.height : null,
     };
     exitSelectMode();
+    // Kick off the screenshot immediately — page is at the exact scroll position
+    // the user was viewing, and the modal hasn't opened yet, so we get a clean capture.
+    state.pendingScreenshot = captureScreenshot();
     renderNewPin(state.selected);
     renderModal();
   }
@@ -700,31 +703,23 @@
     try {
       var h2c = await loadHtml2Canvas();
       if (!h2c) return null;
-      // Remove the widget host from the render tree during capture so html2canvas
-      // never encounters the open modal, shadow DOM, or any file inputs inside it.
-      var prevDisplay = host.style.display;
-      host.style.display = 'none';
-      var canvas;
-      try {
-        canvas = await h2c(document.documentElement, {
-          useCORS: true, allowTaint: false, logging: false,
-          scale: Math.min(1, window.devicePixelRatio || 1),
-          // Use the scroll position captured at PIN time, not submit time.
-          // By submission the page may have scrolled (e.g. browser scrolls to
-          // focus the textarea), which would produce a screenshot of the wrong area.
-          x: state.selected ? (state.selected.scrollX || 0) : (window.scrollX || 0),
-          y: state.selected ? (state.selected.scrollY || 0) : (window.scrollY || 0),
-          width: window.innerWidth, height: window.innerHeight,
-          windowWidth: window.innerWidth, windowHeight: window.innerHeight,
-          ignoreElements: function (el) { return el === host || (host.contains && host.contains(el)); },
-          onclone: function (clonedDoc) {
-            var clonedHost = clonedDoc.getElementById('kaze-widget-host');
-            if (clonedHost) clonedHost.remove();
-          },
-        });
-      } finally {
-        host.style.display = prevDisplay;
-      }
+      // Scroll position at pin-click time (stored in state.selected before this is called).
+      var snapX = state.selected ? (state.selected.scrollX || 0) : (window.scrollX || 0);
+      var snapY = state.selected ? (state.selected.scrollY || 0) : (window.scrollY || 0);
+      var canvas = await h2c(document.documentElement, {
+        useCORS: true, allowTaint: false, logging: false,
+        scale: Math.min(1, window.devicePixelRatio || 1),
+        x: snapX, y: snapY,
+        width: window.innerWidth, height: window.innerHeight,
+        windowWidth: window.innerWidth, windowHeight: window.innerHeight,
+        ignoreElements: function (el) { return el === host || (host.contains && host.contains(el)); },
+        onclone: function (clonedDoc) {
+          // Remove the entire widget host from the clone so html2canvas never
+          // encounters the shadow DOM, modal form, or file inputs.
+          var clonedHost = clonedDoc.getElementById('kaze-widget-host');
+          if (clonedHost) clonedHost.remove();
+        },
+      });
       return canvas.toDataURL('image/jpeg', 0.65);
     } catch (err) {
       console.warn('[Kaze] Screenshot capture failed:', err && err.message ? err.message : err);
@@ -753,9 +748,11 @@
     statusEl.className = 'status';
 
     try {
-    // Always auto-capture the page screenshot
-    statusEl.textContent = 'Capturing screenshot…';
-    var screenshot = await captureScreenshot();
+    // Await the screenshot that was started the moment the user placed their pin.
+    // This guarantees the right scroll position and no modal in the frame.
+    statusEl.textContent = 'Preparing…';
+    var screenshot = await (state.pendingScreenshot || captureScreenshot());
+    state.pendingScreenshot = null;
 
     // If user attached a file, upload it separately as an attachment (never replaces the screenshot)
     var attachmentUrl = null;
