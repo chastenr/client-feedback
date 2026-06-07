@@ -50,6 +50,10 @@ export const createProjectSchema = z.object({
   allowedOrigin: z.string().trim().max(2048).optional().nullable(),
 });
 
+export const updateProjectSchema = createProjectSchema.partial().refine(data => Object.keys(data).length > 0, {
+  message: 'At least one project field is required.',
+});
+
 export const clientAccessSchema = z.object({
   email: z.string().trim().email().max(180),
   username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]+$/, 'Use letters, numbers, dots, dashes, or underscores only.').min(3).max(40).optional().or(z.literal('')).nullable(),

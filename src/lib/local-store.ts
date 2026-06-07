@@ -98,6 +98,21 @@ export async function updateLocalProjectWidgetSeen(tokenValue: string) {
   return db.projects[idx];
 }
 
+export async function updateLocalProject(id: string, updates: { name?: string; clientName?: string | null; websiteUrl?: string; allowedOrigin?: string | null }) {
+  const db = await readDb();
+  const index = db.projects.findIndex(project => project.id === id);
+  if (index === -1) return null;
+  db.projects[index] = {
+    ...db.projects[index],
+    ...(updates.name !== undefined ? { name: updates.name } : {}),
+    ...(updates.clientName !== undefined ? { client_name: updates.clientName || null } : {}),
+    ...(updates.websiteUrl !== undefined ? { website_url: updates.websiteUrl } : {}),
+    ...(updates.allowedOrigin !== undefined ? { allowed_origin: updates.allowedOrigin || null } : {}),
+  };
+  await writeDb(db);
+  return db.projects[index];
+}
+
 export async function listLocalTasks(projectId: string) {
   const db = await readDb();
   const project = db.projects.find(item => item.id === projectId);

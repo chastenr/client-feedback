@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { sendProjectDeletedEmail } from '@/lib/email';
 import { getAdminClient, jsonError } from '@/lib/supabase/server';
-import { deleteLocalProject, getLocalProject, isLocalMode } from '@/lib/local-store';
+import { updateProjectSchema } from '@/lib/api/validation';
+import { deleteLocalProject, getLocalProject, isLocalMode, updateLocalProject } from '@/lib/local-store';
 import { sendSlackNotification } from '@/lib/slack';
 
 export const runtime = 'nodejs';
@@ -26,6 +27,41 @@ export async function GET(
     .single();
 
   if (error || !data) return jsonError('Project not found.', 404);
+  return NextResponse.json({ project: data });
+}
+
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } },
+) {
+  const parsed = updateProjectSchema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid project payload.', details: parsed.error.flatten() }, { status: 422 });
+  }
+
+  if (isLocalMode()) {
+    const project = await updateLocalProject(params.id, parsed.data);
+    if (!project) return jsonError('Project not found.', 404);
+    return NextResponse.json({ project, localMode: true });
+  }
+
+  const result = await getAdminClient(request);
+  if (result instanceof NextResponse) return result;
+
+  const updates: Record<string, unknown> = {};
+  if (parsed.data.name !== undefined) updates.name = parsed.data.name;
+  if (parsed.data.clientName !== undefined) updates.client_name = parsed.data.clientName || null;
+  if (parsed.data.websiteUrl !== undefined) updates.website_url = parsed.data.websiteUrl;
+  if (parsed.data.allowedOrigin !== undefined) updates.allowed_origin = parsed.data.allowedOrigin || null;
+
+  const { data, error } = await result.client
+    .from('projects')
+    .update(updates)
+    .eq('id', params.id)
+    .select('id,name,client_name,website_url,allowed_origin,widget_last_seen_at,public_token,share_token,created_by,created_at')
+    .single();
+
+  if (error || !data) return jsonError(error?.message ?? 'Unable to update project.', 500);
   return NextResponse.json({ project: data });
 }
 

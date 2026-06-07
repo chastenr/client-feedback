@@ -84,6 +84,13 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [clientAccessMessage, setClientAccessMessage] = useState('');
   const [clientAccessError, setClientAccessError] = useState('');
   const [clientAccessSaving, setClientAccessSaving] = useState(false);
+  const [projectNameInput, setProjectNameInput] = useState('');
+  const [projectClientInput, setProjectClientInput] = useState('');
+  const [projectUrlInput, setProjectUrlInput] = useState('');
+  const [projectOriginInput, setProjectOriginInput] = useState('');
+  const [projectSettingsMessage, setProjectSettingsMessage] = useState('');
+  const [projectSettingsError, setProjectSettingsError] = useState('');
+  const [projectSettingsSaving, setProjectSettingsSaving] = useState(false);
   const [memberEmail, setMemberEmail] = useState('');
   const [memberFullName, setMemberFullName] = useState('');
   const [memberRole, setMemberRole] = useState<'admin' | 'member' | 'viewer'>('member');
@@ -134,6 +141,14 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (!project) return;
+    setProjectNameInput(project.name);
+    setProjectClientInput(project.client_name ?? '');
+    setProjectUrlInput(project.website_url);
+    setProjectOriginInput(project.allowed_origin ?? '');
+  }, [project]);
 
   const pageOptions = useMemo(() => {
     return Array.from(new Set(tasks.map(task => task.page_path || safePath(task.page_url)).filter(Boolean))).sort();
@@ -295,6 +310,35 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     const loginName = data.client?.username || data.client?.email || clientEmail;
     setClientAccessMessage(`Client account ready for ${loginName}. Send them the client login and password.`);
     setClientPassword('');
+  }
+
+  async function saveProjectSettings(event: React.FormEvent) {
+    event.preventDefault();
+    if (!project) return;
+    setProjectSettingsSaving(true);
+    setProjectSettingsMessage('');
+    setProjectSettingsError('');
+
+    const response = await dashboardFetch(`/api/projects/${project.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: projectNameInput,
+        clientName: projectClientInput || null,
+        websiteUrl: projectUrlInput,
+        allowedOrigin: projectOriginInput || null,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setProjectSettingsSaving(false);
+
+    if (!response.ok) {
+      setProjectSettingsError(data.error ?? 'Unable to update project.');
+      return;
+    }
+
+    setProject(data.project);
+    setProjectSettingsMessage('Project updated. The snippet token stayed the same.');
   }
 
   async function inviteMember(event: React.FormEvent) {
@@ -894,36 +938,79 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
           <div className="mx-auto max-w-3xl">
             <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
               <h2 className="text-lg font-black text-stone-900">Project settings</h2>
-              <dl className="mt-5 space-y-4 text-sm">
-                <div>
-                  <dt className="font-bold text-stone-500">Project name</dt>
-                  <dd className="mt-0.5 text-stone-900">{project.name}</dd>
+              <p className="mt-1 text-sm leading-6 text-stone-500">
+                Update this when moving from staging to the live website. The project token stays the same.
+              </p>
+
+              <form onSubmit={saveProjectSettings} className="mt-5 space-y-4">
+                <label className="block text-sm font-semibold text-stone-700">
+                  Project name
+                  <input
+                    value={projectNameInput}
+                    onChange={event => setProjectNameInput(event.target.value)}
+                    required
+                    className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                    placeholder="Northside Tutoring"
+                  />
+                </label>
+
+                <label className="block text-sm font-semibold text-stone-700">
+                  Client name
+                  <input
+                    value={projectClientInput}
+                    onChange={event => setProjectClientInput(event.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                    placeholder="Optional"
+                  />
+                </label>
+
+                <label className="block text-sm font-semibold text-stone-700">
+                  Website URL
+                  <input
+                    value={projectUrlInput}
+                    onChange={event => setProjectUrlInput(event.target.value)}
+                    required
+                    type="url"
+                    className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                    placeholder="https://www.example.com"
+                  />
+                </label>
+
+                <label className="block text-sm font-semibold text-stone-700">
+                  Allowed origin
+                  <input
+                    value={projectOriginInput}
+                    onChange={event => setProjectOriginInput(event.target.value)}
+                    className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                    placeholder="https://www.example.com"
+                  />
+                  <span className="mt-1 block text-xs font-normal text-stone-400">
+                    Use this to lock feedback to the staging or live domain. Leave blank only if you want any origin accepted.
+                  </span>
+                </label>
+
+                <div className="rounded-xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600">
+                  Project token: <span className="break-all font-mono text-xs">{project.share_token ?? project.public_token}</span>
+                  <p className="mt-1 text-xs text-stone-400">
+                    The snippet uses this token, so changing the website URL does not require a new snippet unless you want to reinstall it on a different site.
+                  </p>
                 </div>
-                {project.client_name && (
-                  <div>
-                    <dt className="font-bold text-stone-500">Client name</dt>
-                    <dd className="mt-0.5 text-stone-900">{project.client_name}</dd>
-                  </div>
+
+                {projectSettingsMessage && (
+                  <p className="rounded-xl bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">{projectSettingsMessage}</p>
                 )}
-                <div>
-                  <dt className="font-bold text-stone-500">Website URL</dt>
-                  <dd className="mt-0.5 text-stone-900">{project.website_url}</dd>
-                </div>
-                {project.allowed_origin && (
-                  <div>
-                    <dt className="font-bold text-stone-500">Allowed origin</dt>
-                    <dd className="mt-0.5 text-stone-900">{project.allowed_origin}</dd>
-                  </div>
+                {projectSettingsError && (
+                  <p className="rounded-xl bg-red-50 px-3 py-2.5 text-sm text-red-700">{projectSettingsError}</p>
                 )}
-                <div>
-                  <dt className="font-bold text-stone-500">Project token</dt>
-                  <dd className="mt-0.5 break-all font-mono text-xs text-stone-600">{project.share_token ?? project.public_token}</dd>
-                </div>
-                <div>
-                  <dt className="font-bold text-stone-500">Created</dt>
-                  <dd className="mt-0.5 text-stone-900">{new Date(project.created_at).toLocaleDateString()}</dd>
-                </div>
-              </dl>
+
+                <button
+                  type="submit"
+                  disabled={projectSettingsSaving}
+                  className="rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:opacity-60"
+                >
+                  {projectSettingsSaving ? 'Saving...' : 'Save project'}
+                </button>
+              </form>
             </div>
 
             <div className="mt-5 rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
