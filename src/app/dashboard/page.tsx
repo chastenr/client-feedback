@@ -24,6 +24,7 @@ export default function DashboardPage() {
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [projectToChangeUrl, setProjectToChangeUrl] = useState<Project | null>(null);
+  const [changeProjectNameValue, setChangeProjectNameValue] = useState('');
   const [changeUrlValue, setChangeUrlValue] = useState('');
   const [changeOriginValue, setChangeOriginValue] = useState('');
   const [changeUrlConfirmText, setChangeUrlConfirmText] = useState('');
@@ -117,7 +118,7 @@ export default function DashboardPage() {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        name: projectToChangeUrl.name,
+        name: changeProjectNameValue,
         clientName: projectToChangeUrl.client_name || null,
         websiteUrl: changeUrlValue,
         allowedOrigin: changeOriginValue || null,
@@ -133,6 +134,7 @@ export default function DashboardPage() {
 
     setProjects(prev => prev.map(project => project.id === data.project.id ? data.project : project));
     setProjectToChangeUrl(null);
+    setChangeProjectNameValue('');
     setChangeUrlValue('');
     setChangeOriginValue('');
     setChangeUrlConfirmText('');
@@ -347,6 +349,7 @@ export default function DashboardPage() {
                       type="button"
                       onClick={() => {
                         setProjectToChangeUrl(project);
+                        setChangeProjectNameValue(project.name);
                         setChangeUrlValue(project.website_url);
                         setChangeOriginValue(project.allowed_origin ?? '');
                         setChangeUrlConfirmText('');
@@ -524,6 +527,7 @@ export default function DashboardPage() {
           onClick={() => {
             if (changingUrlId) return;
             setProjectToChangeUrl(null);
+            setChangeProjectNameValue('');
             setChangeUrlConfirmText('');
           }}
         >
@@ -534,7 +538,7 @@ export default function DashboardPage() {
           >
             <div className="mb-4 flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-bold uppercase tracking-widest text-violet-500">Change website URL</p>
+                <p className="text-xs font-bold uppercase tracking-widest text-violet-500">Edit project</p>
                 <h2 className="mt-1 line-clamp-2 text-lg font-black text-stone-900">{projectToChangeUrl.name}</h2>
               </div>
               <button
@@ -542,6 +546,7 @@ export default function DashboardPage() {
                 disabled={Boolean(changingUrlId)}
                 onClick={() => {
                   setProjectToChangeUrl(null);
+                  setChangeProjectNameValue('');
                   setChangeUrlConfirmText('');
                 }}
                 className="rounded-lg border border-stone-200 px-2 py-1 text-sm text-stone-500 hover:bg-stone-50 disabled:opacity-50"
@@ -551,10 +556,21 @@ export default function DashboardPage() {
             </div>
 
             <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-              This changes the project target site. The snippet token stays the same, but the widget must be installed on the new site URL.
+              This can change the project name and target site. The snippet token stays the same, but the widget must be installed on the website URL shown here.
             </div>
 
             <div className="mt-4 space-y-4">
+              <label className="block text-sm font-semibold text-stone-700">
+                Project name <span className="text-red-500">*</span>
+                <input
+                  value={changeProjectNameValue}
+                  onChange={event => setChangeProjectNameValue(event.target.value)}
+                  required
+                  className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                  placeholder="Northside Tutoring"
+                />
+              </label>
+
               <label className="block text-sm font-semibold text-stone-700">
                 Current URL
                 <div className="mt-1.5 truncate rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-500">
@@ -591,7 +607,7 @@ export default function DashboardPage() {
               </label>
 
               <label className="block text-sm font-semibold text-stone-700">
-                Type <span className="font-black text-violet-600">CONFIRM</span> to save this URL change
+                Type <span className="font-black text-violet-600">CONFIRM</span> to save these project changes
                 <input
                   value={changeUrlConfirmText}
                   onChange={event => setChangeUrlConfirmText(event.target.value)}
@@ -604,10 +620,10 @@ export default function DashboardPage() {
 
             <button
               type="submit"
-              disabled={changeUrlConfirmText !== 'CONFIRM' || changingUrlId === projectToChangeUrl.id}
+              disabled={changeUrlConfirmText !== 'CONFIRM' || changingUrlId === projectToChangeUrl.id || !changeProjectNameValue.trim()}
               className="mt-5 w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {changingUrlId === projectToChangeUrl.id ? 'Updating...' : 'Change URL'}
+              {changingUrlId === projectToChangeUrl.id ? 'Updating...' : 'Save project changes'}
             </button>
           </form>
         </div>

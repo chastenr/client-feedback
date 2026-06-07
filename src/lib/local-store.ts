@@ -271,6 +271,7 @@ export async function updateLocalComment(taskId: string, commentId: string, mess
   if (index === -1) return null;
   db.comments[index] = {
     ...db.comments[index],
+    previous_message: db.comments[index].message,
     message,
     updated_at: new Date().toISOString(),
   };

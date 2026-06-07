@@ -1817,6 +1817,17 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                           ) : (
                             c.message && <p className="whitespace-pre-wrap text-sm text-stone-800">{c.message}</p>
                           )}
+                          {editingCommentId !== c.id && c.previous_message && (
+                            <details className="mt-3 rounded-xl border border-stone-200 bg-white px-3 py-2">
+                              <summary className="cursor-pointer text-xs font-bold text-stone-500">
+                                View before edit
+                              </summary>
+                              <div className="mt-2 rounded-lg bg-stone-50 px-3 py-2">
+                                <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-stone-400">Before</p>
+                                <p className="whitespace-pre-wrap text-sm text-stone-600">{c.previous_message}</p>
+                              </div>
+                            </details>
+                          )}
                           {c.attachment_url && (
                             <div className="mt-3 overflow-hidden rounded-xl border border-stone-200 bg-white">
                               {isVideoUrl(c.attachment_url) ? (

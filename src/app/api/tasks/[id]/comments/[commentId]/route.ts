@@ -59,7 +59,7 @@ export async function PATCH(
 
   const { data, error } = await result.client
     .from('task_comments')
-    .update({ message, updated_at: new Date().toISOString() })
+    .update({ previous_message: before.message, message, updated_at: new Date().toISOString() })
     .eq('id', params.commentId)
     .eq('task_id', params.id)
     .select('*')
