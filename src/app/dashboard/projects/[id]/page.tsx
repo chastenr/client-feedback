@@ -71,6 +71,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [tasks, setTasks] = useState<FeedbackTask[]>([]);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [localMode, setLocalMode] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -146,6 +147,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     else {
       setProject(projectData.project);
       setLocalMode(Boolean(projectData.localMode));
+      setIsSuperAdmin(Boolean(projectData.isSuperAdmin));
     }
     if (!tasksResponse.ok) setError(tasksData.error ?? 'Unable to load tasks.');
     else setTasks(tasksData.tasks ?? []);
@@ -532,7 +534,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const projectToken = project ? (project.share_token ?? project.public_token) : 'PROJECT_ID';
 
   const currentProjectRole = members.find(member => member.user_id === currentUserId)?.role ?? null;
-  const canViewActivity = localMode || currentProjectRole === 'owner' || currentProjectRole === 'admin';
+  const canViewActivity = localMode || isSuperAdmin || currentProjectRole === 'owner' || currentProjectRole === 'admin';
 
   const tabs: { id: Tab; label: string; icon: IconName }[] = [
     { id: 'tasks', label: 'Task Board', icon: 'board' },

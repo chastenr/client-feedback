@@ -4,6 +4,31 @@ import { NextResponse } from 'next/server';
 type AdminMode = 'user' | 'service-dev';
 type AuthMode = 'user';
 
+function configuredSuperAdminEmails() {
+  return (process.env.SUPER_ADMIN_EMAILS ?? process.env.HEAD_ADMIN_EMAILS ?? '')
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+function isConfiguredSuperAdmin(user: User | null) {
+  const email = user?.email?.toLowerCase();
+  return Boolean(email && configuredSuperAdminEmails().includes(email));
+}
+
+export async function isGlobalAdmin(client: SupabaseClient, user: User | null) {
+  if (!user) return process.env.ADMIN_AUTH_DISABLED === 'true';
+  if (isConfiguredSuperAdmin(user)) return true;
+
+  const { data } = await client
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .maybeSingle();
+
+  return data?.role === 'owner';
+}
+
 export function getAppOrigin(request?: Request) {
   const configured = process.env.NEXT_PUBLIC_APP_URL;
   if (configured) return configured.replace(/\/$/, '');
@@ -62,7 +87,7 @@ export function getBearerToken(request: Request) {
   return header.slice('Bearer '.length).trim();
 }
 
-export async function getAdminClient(request: Request): Promise<{ client: SupabaseClient; mode: AdminMode; user: User | null } | NextResponse> {
+export async function getAdminClient(request: Request): Promise<{ client: SupabaseClient; mode: AdminMode; user: User | null; isSuperAdmin: boolean } | NextResponse> {
   const token = getBearerToken(request);
   if (token) {
     const userClient = createUserClient(token);
@@ -79,6 +104,8 @@ export async function getAdminClient(request: Request): Promise<{ client: Supaba
       .select('role')
       .eq('id', data.user.id)
       .maybeSingle();
+    const isSuperAdmin = profile?.role === 'owner' || isConfiguredSuperAdmin(data.user);
+    if (isSuperAdmin) return { client: service, mode: 'user', user: data.user, isSuperAdmin: true };
     if (!profileError && profile?.role === 'viewer') return jsonError('Admin access required.', 403);
 
     const { data: memberships } = await service
@@ -89,12 +116,12 @@ export async function getAdminClient(request: Request): Promise<{ client: Supaba
       return jsonError('Admin access required.', 403);
     }
 
-    return { client: service, mode: 'user', user: data.user };
+    return { client: service, mode: 'user', user: data.user, isSuperAdmin: false };
   }
 
   if (process.env.ADMIN_AUTH_DISABLED === 'true') {
     try {
-      return { client: createServiceClient(), mode: 'service-dev', user: null };
+      return { client: createServiceClient(), mode: 'service-dev', user: null, isSuperAdmin: true };
     } catch {
       return serviceRoleConfigError();
     }
@@ -121,6 +148,8 @@ export async function getAuthenticatedClient(request: Request): Promise<{ client
 export async function requireProjectAccess(request: Request, projectId: string) {
   const result = await getAuthenticatedClient(request);
   if (result instanceof NextResponse) return result;
+
+  if (await isGlobalAdmin(result.client, result.user)) return result;
 
   const { data } = await result.client
     .from('project_members')

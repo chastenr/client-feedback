@@ -28,7 +28,7 @@ export async function GET(
     .single();
 
   if (error || !data) return jsonError('Project not found.', 404);
-  return NextResponse.json({ project: data });
+  return NextResponse.json({ project: data, isSuperAdmin: result.isSuperAdmin });
 }
 
 export async function PATCH(

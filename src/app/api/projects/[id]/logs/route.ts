@@ -15,7 +15,7 @@ export async function GET(
   const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
 
-  if (result.user) {
+  if (result.user && !result.isSuperAdmin) {
     const { data: membership } = await result.client
       .from('project_members')
       .select('role')
