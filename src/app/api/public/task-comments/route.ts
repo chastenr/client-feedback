@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
+import { recordAuditLog } from '@/lib/audit';
 import { createServiceClient, getAppOrigin, getUserDisplayName, requireProjectAccess } from '@/lib/supabase/server';
-import { isLocalMode, getLocalTask, getLocalTaskComments, createLocalComment } from '@/lib/local-store';
+import { isLocalMode, getLocalTask, getLocalTaskComments, createLocalComment, createLocalAuditLog } from '@/lib/local-store';
 import { sendSlackNotification } from '@/lib/slack';
 
 export const runtime = 'nodejs';
@@ -80,6 +81,20 @@ export async function POST(request: Request) {
   if (isLocalMode()) {
     const comment = await createLocalComment(taskId, message, 'Client');
     if (!comment) return NextResponse.json({ error: 'Task not found.' }, { status: 404, headers: cors });
+    const task = await getLocalTask(taskId);
+    if (task) {
+      await createLocalAuditLog({
+        project_id: task.project_id,
+        project_name: task.projects?.name ?? null,
+        task_id: task.id,
+        actor_id: null,
+        actor_name: 'Client',
+        actor_email: null,
+        action: 'client_comment_added',
+        summary: 'Client commented on a task.',
+        metadata: { message },
+      });
+    }
     return NextResponse.json({ comment }, { status: 201, headers: cors });
   }
 
@@ -126,6 +141,17 @@ export async function POST(request: Request) {
     pagePath: task.page_path,
     authorName,
     message,
+  });
+
+  await recordAuditLog(supabase, {
+    projectId: task.project_id,
+    projectName: project?.name ?? null,
+    taskId,
+    user: access.user,
+    actorName: authorName,
+    action: 'client_comment_added',
+    summary: `${authorName} commented on a task.`,
+    metadata: { message },
   });
 
   return NextResponse.json({ comment }, { status: 201, headers: cors });

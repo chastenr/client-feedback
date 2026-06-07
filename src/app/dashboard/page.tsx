@@ -23,6 +23,11 @@ export default function DashboardPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [projectToDelete, setProjectToDelete] = useState<Project | null>(null);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [projectToChangeUrl, setProjectToChangeUrl] = useState<Project | null>(null);
+  const [changeUrlValue, setChangeUrlValue] = useState('');
+  const [changeOriginValue, setChangeOriginValue] = useState('');
+  const [changeUrlConfirmText, setChangeUrlConfirmText] = useState('');
+  const [changingUrlId, setChangingUrlId] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createBrowserSupabaseClient();
@@ -100,6 +105,37 @@ export default function DashboardPage() {
     setProjects(prev => prev.filter(item => item.id !== project.id));
     setProjectToDelete(null);
     setDeleteConfirmText('');
+  }
+
+  async function changeProjectUrl(event: React.FormEvent) {
+    event.preventDefault();
+    if (!projectToChangeUrl || changeUrlConfirmText !== 'CONFIRM') return;
+    setChangingUrlId(projectToChangeUrl.id);
+    setError('');
+
+    const response = await dashboardFetch(`/api/projects/${projectToChangeUrl.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: projectToChangeUrl.name,
+        clientName: projectToChangeUrl.client_name || null,
+        websiteUrl: changeUrlValue,
+        allowedOrigin: changeOriginValue || null,
+      }),
+    });
+    const data = await response.json().catch(() => ({}));
+    setChangingUrlId(null);
+
+    if (!response.ok) {
+      setError(data.error ?? 'Unable to update project URL.');
+      return;
+    }
+
+    setProjects(prev => prev.map(project => project.id === data.project.id ? data.project : project));
+    setProjectToChangeUrl(null);
+    setChangeUrlValue('');
+    setChangeOriginValue('');
+    setChangeUrlConfirmText('');
   }
 
   const filteredProjects = useMemo(() => {
@@ -294,7 +330,7 @@ export default function DashboardPage() {
                       </button>
                     </div>
                   </div>
-                  <div className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <div className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto_auto]">
                     <Link
                       href={`/dashboard/projects/${project.id}`}
                       className="rounded-xl bg-violet-600 px-4 py-2.5 text-center text-sm font-bold text-white hover:bg-violet-700"
@@ -307,6 +343,18 @@ export default function DashboardPage() {
                     >
                       Install
                     </Link>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setProjectToChangeUrl(project);
+                        setChangeUrlValue(project.website_url);
+                        setChangeOriginValue(project.allowed_origin ?? '');
+                        setChangeUrlConfirmText('');
+                      }}
+                      className="rounded-xl border border-stone-200 bg-white px-4 py-2.5 text-center text-sm font-semibold text-stone-600 hover:bg-stone-50"
+                    >
+                      URL
+                    </button>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-2 border-t border-stone-100 pt-3 text-xs font-semibold text-stone-400">
                     <span>Created {new Date(project.created_at).toLocaleDateString()}</span>
@@ -451,6 +499,101 @@ export default function DashboardPage() {
               className="mt-5 w-full rounded-xl bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {deletingId === projectToDelete.id ? 'Deleting...' : 'Delete permanently'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {projectToChangeUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/60 p-4"
+          onClick={() => {
+            if (changingUrlId) return;
+            setProjectToChangeUrl(null);
+            setChangeUrlConfirmText('');
+          }}
+        >
+          <form
+            className="w-full max-w-md rounded-2xl border border-stone-200 bg-white p-6 shadow-xl"
+            onClick={event => event.stopPropagation()}
+            onSubmit={changeProjectUrl}
+          >
+            <div className="mb-4 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-widest text-violet-500">Change website URL</p>
+                <h2 className="mt-1 line-clamp-2 text-lg font-black text-stone-900">{projectToChangeUrl.name}</h2>
+              </div>
+              <button
+                type="button"
+                disabled={Boolean(changingUrlId)}
+                onClick={() => {
+                  setProjectToChangeUrl(null);
+                  setChangeUrlConfirmText('');
+                }}
+                className="rounded-lg border border-stone-200 px-2 py-1 text-sm text-stone-500 hover:bg-stone-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+              This changes the project target site. The snippet token stays the same, but the widget must be installed on the new site URL.
+            </div>
+
+            <div className="mt-4 space-y-4">
+              <label className="block text-sm font-semibold text-stone-700">
+                Current URL
+                <div className="mt-1.5 truncate rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-sm text-stone-500">
+                  {projectToChangeUrl.website_url}
+                </div>
+              </label>
+
+              <label className="block text-sm font-semibold text-stone-700">
+                New website URL <span className="text-red-500">*</span>
+                <input
+                  value={changeUrlValue}
+                  onChange={event => {
+                    setChangeUrlValue(event.target.value);
+                    if (!changeOriginValue) setChangeOriginValue(event.target.value);
+                  }}
+                  type="url"
+                  required
+                  className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                  placeholder="https://www.example.com"
+                />
+              </label>
+
+              <label className="block text-sm font-semibold text-stone-700">
+                Allowed origin
+                <input
+                  value={changeOriginValue}
+                  onChange={event => setChangeOriginValue(event.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                  placeholder="https://www.example.com"
+                />
+                <span className="mt-1 block text-xs font-normal text-stone-400">
+                  Keep this locked to the same domain unless you intentionally want feedback from another origin.
+                </span>
+              </label>
+
+              <label className="block text-sm font-semibold text-stone-700">
+                Type <span className="font-black text-violet-600">CONFIRM</span> to save this URL change
+                <input
+                  value={changeUrlConfirmText}
+                  onChange={event => setChangeUrlConfirmText(event.target.value)}
+                  className="mt-1.5 w-full rounded-xl border border-stone-300 bg-stone-50 px-3 py-2.5 text-sm outline-none transition focus:border-violet-500 focus:bg-white focus:ring-2 focus:ring-violet-100"
+                  placeholder="CONFIRM"
+                  autoFocus
+                />
+              </label>
+            </div>
+
+            <button
+              type="submit"
+              disabled={changeUrlConfirmText !== 'CONFIRM' || changingUrlId === projectToChangeUrl.id}
+              className="mt-5 w-full rounded-xl bg-violet-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {changingUrlId === projectToChangeUrl.id ? 'Updating...' : 'Change URL'}
             </button>
           </form>
         </div>

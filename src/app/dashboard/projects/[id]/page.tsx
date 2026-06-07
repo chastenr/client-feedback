@@ -12,8 +12,9 @@ import {
 } from '@/lib/api/feedback-types';
 import { dashboardFetch } from '@/lib/api/client';
 import ThemeToggle from '@/components/ThemeToggle';
+import type { AuditLog } from '@/lib/audit';
 
-type Tab = 'tasks' | 'install' | 'settings';
+type Tab = 'tasks' | 'install' | 'logs' | 'settings';
 
 interface ProjectMember {
   id: string;
@@ -101,6 +102,9 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const [slackMessage, setSlackMessage] = useState('');
   const [slackError, setSlackError] = useState('');
   const [slackTesting, setSlackTesting] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
+  const [auditLogsLoading, setAuditLogsLoading] = useState(false);
+  const [auditNeedsMigration, setAuditNeedsMigration] = useState(false);
 
   // Drawer state
   const [drawerTask, setDrawerTask] = useState<FeedbackTask | null>(null);
@@ -141,6 +145,23 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   useEffect(() => {
     load();
   }, [load]);
+
+  const loadAuditLogs = useCallback(async () => {
+    setAuditLogsLoading(true);
+    const response = await dashboardFetch(`/api/projects/${params.id}/logs`);
+    const data = await response.json().catch(() => ({}));
+    if (response.ok) {
+      setAuditLogs(data.logs ?? []);
+      setAuditNeedsMigration(Boolean(data.needsMigration));
+    }
+    setAuditLogsLoading(false);
+  }, [params.id]);
+
+  useEffect(() => {
+    if (activeTab === 'logs') {
+      loadAuditLogs();
+    }
+  }, [activeTab, loadAuditLogs]);
 
   useEffect(() => {
     if (!project) return;
@@ -427,6 +448,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
   const tabs: { id: Tab; label: string; icon: IconName }[] = [
     { id: 'tasks', label: 'Task Board', icon: 'board' },
     { id: 'install', label: 'Integrations', icon: 'install' },
+    { id: 'logs', label: 'Activity', icon: 'feedback' },
     { id: 'settings', label: 'Settings', icon: 'settings' },
   ];
 
@@ -459,6 +481,13 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
 
   function shortId(id: string) {
     return id.slice(0, 8);
+  }
+
+  function actionLabel(action: string) {
+    return action
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
   }
 
   function getPageUrl() {
@@ -590,7 +619,7 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                     </div>
                     <nav className="space-y-1">
                       {tabs.map(tab => {
-                        const count = tab.id === 'tasks' ? tasks.length : tab.id === 'settings' ? members.length : null;
+                        const count = tab.id === 'tasks' ? tasks.length : tab.id === 'settings' ? members.length : tab.id === 'logs' ? auditLogs.length : null;
                         return (
                           <button
                             key={tab.id}
@@ -929,6 +958,89 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                 >
                   Share client link
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'logs' && project && (
+          <div className="mx-auto max-w-4xl space-y-4">
+            <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Project history</p>
+                  <h2 className="mt-1 text-lg font-black text-stone-900">Activity log</h2>
+                  <p className="mt-1 text-sm leading-6 text-stone-500">
+                    Track important changes like URL updates, task moves, comments, and project deletion alerts.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={loadAuditLogs}
+                  disabled={auditLogsLoading}
+                  className="inline-flex w-fit items-center gap-2 rounded-xl border border-stone-200 bg-white px-3 py-2 text-sm font-bold text-stone-600 hover:bg-stone-50 disabled:opacity-60"
+                >
+                  <Icon name="refresh" className="h-4 w-4" />
+                  Refresh
+                </button>
+              </div>
+
+              {auditNeedsMigration && (
+                <div className="mt-5 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
+                  Activity table is not installed in Supabase yet. Run migration <code className="rounded bg-white/70 px-1 py-0.5 text-xs">006_audit_logs.sql</code> to store production logs.
+                </div>
+              )}
+
+              <div className="mt-6">
+                {auditLogsLoading ? (
+                  <div className="rounded-2xl border border-dashed border-stone-200 bg-stone-50 p-10 text-center text-sm text-stone-400">
+                    Loading activity...
+                  </div>
+                ) : auditLogs.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-stone-200 bg-stone-50 p-10 text-center">
+                    <p className="text-sm font-bold text-stone-600">No activity recorded yet.</p>
+                    <p className="mt-1 text-sm text-stone-400">Future URL changes, comments, and task updates will show here.</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-stone-100 rounded-2xl border border-stone-200 bg-white">
+                    {auditLogs.map(log => (
+                      <article key={log.id} className="grid gap-3 px-4 py-4 sm:grid-cols-[150px_minmax(0,1fr)]">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-widest text-stone-400">{actionLabel(log.action)}</p>
+                          <p className="mt-1 text-xs text-stone-400">{new Date(log.created_at).toLocaleString()}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="rounded-full bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700">
+                              {log.actor_name || log.actor_email || 'System'}
+                            </span>
+                            {log.task_id && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const task = tasks.find(item => item.id === log.task_id);
+                                  if (task) openDrawer(task);
+                                }}
+                                className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-bold text-stone-600 hover:bg-stone-200"
+                              >
+                                Task #{shortId(log.task_id)}
+                              </button>
+                            )}
+                          </div>
+                          <p className="mt-2 text-sm leading-6 text-stone-800">{log.summary}</p>
+                          {log.metadata && Object.keys(log.metadata).length > 0 && (
+                            <details className="mt-2 rounded-xl bg-stone-50 px-3 py-2 text-xs text-stone-500">
+                              <summary className="cursor-pointer font-bold text-stone-600">View metadata</summary>
+                              <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-5">
+                                {JSON.stringify(log.metadata, null, 2)}
+                              </pre>
+                            </details>
+                          )}
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>

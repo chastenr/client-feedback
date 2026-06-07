@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { recordAuditLog } from '@/lib/audit';
 import { sendProjectDeletedEmail } from '@/lib/email';
-import { getAdminClient, jsonError } from '@/lib/supabase/server';
+import { getAdminClient, getUserDisplayName, jsonError } from '@/lib/supabase/server';
 import { updateProjectSchema } from '@/lib/api/validation';
-import { deleteLocalProject, getLocalProject, isLocalMode, updateLocalProject } from '@/lib/local-store';
+import { createLocalAuditLog, deleteLocalProject, getLocalProject, isLocalMode, updateLocalProject } from '@/lib/local-store';
 import { sendSlackNotification } from '@/lib/slack';
 
 export const runtime = 'nodejs';
@@ -40,13 +41,32 @@ export async function PATCH(
   }
 
   if (isLocalMode()) {
+    const before = await getLocalProject(params.id);
     const project = await updateLocalProject(params.id, parsed.data);
     if (!project) return jsonError('Project not found.', 404);
+    await createLocalAuditLog({
+      project_id: project.id,
+      project_name: project.name,
+      task_id: null,
+      actor_id: null,
+      actor_name: 'Admin',
+      actor_email: null,
+      action: 'project_updated',
+      summary: `Project settings updated${before?.website_url !== project.website_url ? ` from ${before?.website_url} to ${project.website_url}` : ''}.`,
+      metadata: { before, after: project },
+    });
     return NextResponse.json({ project, localMode: true });
   }
 
   const result = await getAdminClient(request);
   if (result instanceof NextResponse) return result;
+
+  const { data: before } = await result.client
+    .from('projects')
+    .select('id,name,client_name,website_url,allowed_origin')
+    .eq('id', params.id)
+    .maybeSingle();
+  if (!before) return jsonError('Project not found.', 404);
 
   const updates: Record<string, unknown> = {};
   if (parsed.data.name !== undefined) updates.name = parsed.data.name;
@@ -62,6 +82,18 @@ export async function PATCH(
     .single();
 
   if (error || !data) return jsonError(error?.message ?? 'Unable to update project.', 500);
+  const actorName = result.user ? await getUserDisplayName(result.client, result.user) : 'Admin';
+  await recordAuditLog(result.client, {
+    projectId: data.id,
+    projectName: data.name,
+    user: result.user,
+    actorName,
+    action: before.website_url !== data.website_url ? 'project_url_changed' : 'project_updated',
+    summary: before.website_url !== data.website_url
+      ? `${actorName} changed website URL from ${before.website_url} to ${data.website_url}.`
+      : `${actorName} updated project settings.`,
+    metadata: { before, after: data },
+  });
   return NextResponse.json({ project: data });
 }
 
@@ -70,8 +102,20 @@ export async function DELETE(
   { params }: { params: { id: string } },
 ) {
   if (isLocalMode()) {
+    const project = await getLocalProject(params.id);
     const deleted = await deleteLocalProject(params.id);
     if (!deleted) return jsonError('Project not found.', 404);
+    await createLocalAuditLog({
+      project_id: params.id,
+      project_name: project?.name ?? null,
+      task_id: null,
+      actor_id: null,
+      actor_name: 'Admin',
+      actor_email: null,
+      action: 'project_deleted',
+      summary: `Admin deleted ${project?.name ?? 'project'}.`,
+      metadata: { project },
+    });
     return NextResponse.json({ ok: true, localMode: true });
   }
 
@@ -119,6 +163,16 @@ export async function DELETE(
     .delete()
     .eq('id', params.id);
   if (projectError) return jsonError(projectError.message, 500);
+
+  await recordAuditLog(result.client, {
+    projectId: params.id,
+    projectName: project.name,
+    user: result.user,
+    actorName: deletedBy,
+    action: 'project_deleted',
+    summary: `${deletedBy} deleted ${project.name}.`,
+    metadata: { website_url: project.website_url, task_count: taskIds.length },
+  });
 
   await Promise.allSettled([
     sendSlackNotification({

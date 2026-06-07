@@ -1,11 +1,13 @@
 import { mkdir, readFile, writeFile } from 'fs/promises';
 import path from 'path';
+import type { AuditLog } from '@/lib/audit';
 import type { FeedbackTask, Project, TaskComment, TaskPriority, TaskStatus } from '@/lib/api/feedback-types';
 
 interface LocalDb {
   projects: Project[];
   tasks: FeedbackTask[];
   comments: TaskComment[];
+  logs?: AuditLog[];
 }
 
 const DATA_DIR = process.env.VERCEL
@@ -26,7 +28,7 @@ async function readDb(): Promise<LocalDb> {
     const raw = await readFile(DATA_FILE, 'utf8');
     return JSON.parse(raw) as LocalDb;
   } catch {
-    return { projects: [], tasks: [], comments: [] };
+    return { projects: [], tasks: [], comments: [], logs: [] };
   }
 }
 
@@ -111,6 +113,25 @@ export async function updateLocalProject(id: string, updates: { name?: string; c
   };
   await writeDb(db);
   return db.projects[index];
+}
+
+export async function createLocalAuditLog(input: Omit<AuditLog, 'id' | 'created_at'> & { created_at?: string }) {
+  const db = await readDb();
+  const log: AuditLog = {
+    ...input,
+    id: crypto.randomUUID(),
+    created_at: input.created_at ?? new Date().toISOString(),
+  };
+  db.logs = [log, ...(db.logs ?? [])];
+  await writeDb(db);
+  return log;
+}
+
+export async function listLocalAuditLogs(projectId: string) {
+  const db = await readDb();
+  return (db.logs ?? [])
+    .filter(log => log.project_id === projectId)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
 export async function listLocalTasks(projectId: string) {
