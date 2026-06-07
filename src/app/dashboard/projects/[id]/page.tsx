@@ -625,6 +625,14 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
     return 'settings';
   }
 
+  function logIconColor(log: AuditLog): string {
+    if (log.action === 'task_status_changed') return 'bg-amber-50 text-amber-600';
+    if (log.action.includes('comment')) return 'bg-sky-50 text-sky-700';
+    if (log.action.includes('deleted')) return 'bg-red-50 text-red-600';
+    if (log.action.includes('url') || log.action.includes('updated')) return 'bg-violet-50 text-violet-700';
+    return 'bg-sky-50 text-sky-700';
+  }
+
   function getPageUrl() {
     if (!drawerTask) return '#';
     try {
@@ -1141,19 +1149,60 @@ export default function ProjectBoardPage({ params }: { params: { id: string } })
                     {auditLogs.map(log => (
                       <article key={log.id} className="rounded-2xl border border-stone-200 bg-white px-4 py-4 shadow-sm">
                         <div className="flex gap-3">
-                          <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700">
+                          <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${logIconColor(log)}`}>
                             <Icon name={logIcon(log)} className="h-5 w-5" />
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
                               <div className="min-w-0">
                                 <h3 className="text-sm font-black text-stone-900">{friendlyLogTitle(log)}</h3>
-                                <p className="mt-1 text-sm leading-6 text-stone-600">{friendlyLogSummary(log)}</p>
+                                <p className="mt-0.5 text-sm leading-6 text-stone-600">{friendlyLogSummary(log)}</p>
                               </div>
                               <p className="flex-shrink-0 text-xs font-semibold text-stone-400">
                                 {new Date(log.created_at).toLocaleString()}
                               </p>
                             </div>
+
+                            {/* Comment message preview */}
+                            {(log.action === 'comment_added' || log.action === 'client_comment_added') &&
+                              typeof log.metadata?.message === 'string' && log.metadata.message ? (
+                              <p className="mt-2 line-clamp-2 text-sm italic text-stone-500">
+                                &ldquo;{log.metadata.message}&rdquo;
+                              </p>
+                            ) : null}
+
+                            {/* Before / After diff for edited comments */}
+                            {log.action === 'comment_updated' && (!!log.metadata?.before || !!log.metadata?.after) && (
+                              <div className="mt-3 space-y-2">
+                                {!!log.metadata.before && (
+                                  <div className="border-l-2 border-red-400 pl-3">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">Before</p>
+                                    <p className="mt-0.5 line-clamp-3 text-sm text-stone-600">{String(log.metadata.before)}</p>
+                                  </div>
+                                )}
+                                {!!log.metadata.after && (
+                                  <div className="border-l-2 border-emerald-500 pl-3">
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-stone-400">After</p>
+                                    <p className="mt-0.5 line-clamp-3 text-sm text-stone-600">{String(log.metadata.after)}</p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Image attachment preview */}
+                            {(log.action === 'comment_added' || log.action === 'client_comment_added') &&
+                              typeof log.metadata?.attachment_url === 'string' && log.metadata.attachment_url && (
+                              <div className="mt-3">
+                                <a href={String(log.metadata.attachment_url)} target="_blank" rel="noopener noreferrer" className="inline-block">
+                                  <img
+                                    src={String(log.metadata.attachment_url)}
+                                    alt="Attachment"
+                                    className="max-h-44 rounded-xl border border-stone-200 object-cover shadow-sm hover:opacity-90"
+                                  />
+                                </a>
+                              </div>
+                            )}
+
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                               <span className="rounded-full bg-stone-100 px-2.5 py-1 text-xs font-bold text-stone-600">
                                 By {actorLabel(log)}

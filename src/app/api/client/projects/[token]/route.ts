@@ -27,6 +27,15 @@ export async function GET(
 
   if (!membership) return NextResponse.json({ error: 'You do not have access to this client project.' }, { status: 403 });
 
+  const { data: latestTask } = await result.client
+    .from('feedback_tasks')
+    .select('screenshot_url')
+    .eq('project_id', project.id)
+    .not('screenshot_url', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
   return NextResponse.json({
     project: {
       id: project.id,
@@ -34,6 +43,7 @@ export async function GET(
       client_name: project.client_name ?? null,
       website_url: project.website_url,
       review_token: project.share_token ?? project.public_token,
+      latest_screenshot: latestTask?.screenshot_url ?? null,
     },
   });
 }

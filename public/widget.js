@@ -700,14 +700,22 @@
     try {
       var h2c = await loadHtml2Canvas();
       if (!h2c) return null;
-      var canvas = await h2c(document.documentElement, {
-        useCORS: true, allowTaint: false, logging: false,
-        scale: Math.min(1, window.devicePixelRatio || 1),
-        x: window.scrollX || 0, y: window.scrollY || 0,
-        width: window.innerWidth, height: window.innerHeight,
-        windowWidth: window.innerWidth, windowHeight: window.innerHeight,
-        ignoreElements: function (el) { return el === host || (host.contains && host.contains(el)); },
-      });
+      // Hide the entire widget host (including shadow DOM) so html2canvas doesn't
+      // render the open modal form on top of the page capture.
+      host.style.visibility = 'hidden';
+      var canvas;
+      try {
+        canvas = await h2c(document.documentElement, {
+          useCORS: true, allowTaint: false, logging: false,
+          scale: Math.min(1, window.devicePixelRatio || 1),
+          x: window.scrollX || 0, y: window.scrollY || 0,
+          width: window.innerWidth, height: window.innerHeight,
+          windowWidth: window.innerWidth, windowHeight: window.innerHeight,
+          ignoreElements: function (el) { return el === host || (host.contains && host.contains(el)); },
+        });
+      } finally {
+        host.style.visibility = '';
+      }
       return canvas.toDataURL('image/jpeg', 0.65);
     } catch (_) { return null; }
   }

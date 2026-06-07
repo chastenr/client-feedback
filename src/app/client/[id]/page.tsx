@@ -9,6 +9,7 @@ interface ReviewProject {
   client_name: string | null;
   website_url: string;
   review_token: string;
+  latest_screenshot: string | null;
 }
 
 export default function ReviewPage({ params }: { params: { id: string } }) {
@@ -85,6 +86,16 @@ export default function ReviewPage({ params }: { params: { id: string } }) {
           <p className="mt-2 text-sm text-stone-500">
             Open the website, click Feedback, and leave comments directly on the page.
           </p>
+
+          {project?.latest_screenshot && (
+            <div className="mt-5 overflow-hidden rounded-xl border border-stone-200 shadow-sm">
+              <img
+                src={project.latest_screenshot}
+                alt="Website preview"
+                className="max-h-48 w-full object-cover object-top"
+              />
+            </div>
+          )}
 
           <ol className="mt-6 space-y-4">
             {[
